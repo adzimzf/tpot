@@ -16,15 +16,6 @@ type Config struct {
 	Proxies []*Proxy `json:"proxies"`
 }
 
-type Node struct {
-	Items []Item `json:"items"`
-}
-
-type Item struct {
-	Hostname string `json:"hostname"`
-	Address  string `json:"addr"`
-}
-
 func AddConfig() (err error) {
 	if err := addConfigDirExist(); err != nil {
 		return err

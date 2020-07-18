@@ -14,6 +14,15 @@ type Proxy struct {
 	Node     Node
 }
 
+type Node struct {
+	Items []Item `json:"items"`
+}
+
+type Item struct {
+	Hostname string `json:"hostname"`
+	Address  string `json:"addr"`
+}
+
 var ErrEnvNotFound = fmt.Errorf("env not found")
 
 const permission = 775
