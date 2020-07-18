@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -15,15 +14,7 @@ import (
 var configDir = os.Getenv("HOME") + "/.tpot/"
 
 type Config struct {
-	Proxies []Proxy `json:"proxies"`
-}
-
-type Proxy struct {
-	Address  string `json:"address"`
-	UserName string `json:"user_name"`
-	Env      string `json:"env"`
-	TwoFA    bool   `json:"two_fa"`
-	Node     Node
+	Proxies []*Proxy `json:"proxies"`
 }
 
 type Node struct {
@@ -64,62 +55,29 @@ func NewProxy(env string) (*Proxy, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var config Config
 	err = json.Unmarshal(bytes, &config)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, p := range config.Proxies {
 		if p.Env == env {
-			return &p, nil
+			return p, nil
 		}
 	}
+
 	return nil, ErrEnvNotFound
 }
 
 func AddConfig() (err error) {
-
 	if err := addConfigDirExist(); err != nil {
 		return err
 	}
 
-	cfgPath := configDir + "config.json"
-
-	var p Proxy
-	p.Env, err = prompt("Environment", func(string2 string) error {
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	p.Address, err = prompt("Proxy Address (with http protocol)", func(string2 string) error {
-		_, err := url.ParseRequestURI(string2)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	p.UserName, err = prompt("Username (teleport username)", func(string2 string) error {
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	isTwoFA, err := prompt("Is Need 2FA (Y/y/N/n)", func(string2 string) error {
-		if string2 == "Y" || string2 == "y" || string2 == "N" || string2 == "n" {
-			return nil
-		}
-		return fmt.Errorf("invalid formatting")
-	})
-	if err != nil {
-		return err
-	}
-
-	if isTwoFA == "Y" || isTwoFA == "y" {
-		p.TwoFA = true
-	}
-
 	var cfg Config
+	cfgPath := configDir + "config.json"
 	file, err := ioutil.ReadFile(cfgPath)
 	if err == nil {
 		err := json.Unmarshal(file, &cfg)
@@ -128,9 +86,11 @@ func AddConfig() (err error) {
 		}
 	}
 
+	p := &Proxy{}
+	NewProxySetterStations().Execute(p)
 	cfg.Proxies = append(cfg.Proxies, p)
 
-	bytes, err := json.Marshal(cfg)
+	bytes, err := json.MarshalIndent(cfg, "", "	")
 	if err != nil {
 		return err
 	}
