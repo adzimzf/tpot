@@ -1,8 +1,9 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
-	"net/url"
+	"io/ioutil"
 )
 
 type Proxy struct {
@@ -13,124 +14,47 @@ type Proxy struct {
 	Node     Node
 }
 
-type ProxySetterStation interface {
-	Execute(p *Proxy) error
-}
+var ErrEnvNotFound = fmt.Errorf("env not found")
 
-type ProxySetter struct{}
+const permission = 775
 
-func NewProxySetterStations() *ProxySetter {
-	return &ProxySetter{}
-}
-
-func (ps *ProxySetter) Execute(p *Proxy) error {
-	twoFAStt := NewSetTwoFAStation(nil)
-	userNameStt := NewSetUserNameStation(twoFAStt)
-	addrStt := NewSetAddressStation(userNameStt)
-	envStt := NewSetEnvStation(addrStt)
-
-	return envStt.Execute(p)
-}
-
-type SetEnvStation struct {
-	next ProxySetterStation
-}
-
-func NewSetEnvStation(next ProxySetterStation) *SetEnvStation {
-	return &SetEnvStation{next}
-}
-
-func (s *SetEnvStation) Execute(p *Proxy) error {
-	var err error
-	p.Env, err = prompt("Environment", func(env string) error {
-		return nil
-	})
-
+func NewProxy(env string) (*Proxy, error) {
+	bytes, err := ioutil.ReadFile(configDir + "config.json")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return determineNext(s.next, p)
-}
+	var config Config
+	err = json.Unmarshal(bytes, &config)
+	if err != nil {
+		return nil, err
+	}
 
-type SetAddressStation struct {
-	next ProxySetterStation
-}
-
-func NewSetAddressStation(next ProxySetterStation) *SetAddressStation {
-	return &SetAddressStation{next}
-}
-
-func (s *SetAddressStation) Execute(p *Proxy) error {
-	var err error
-	p.Address, err = prompt("Proxy Address (with http protocol)", func(address string) error {
-		_, err := url.ParseRequestURI(address)
-		if err != nil {
-			return err
+	for _, p := range config.Proxies {
+		if p.Env == env {
+			return p, nil
 		}
+	}
 
-		return nil
-	})
+	return nil, ErrEnvNotFound
+}
 
+func (p *Proxy) UpdateNode(n Node) error {
+	bytes, err := json.Marshal(n)
 	if err != nil {
 		return err
 	}
-
-	return determineNext(s.next, p)
+	return ioutil.WriteFile(configDir+"node_"+p.Env+".json", bytes, permission)
 }
 
-type SetUserNameStation struct {
-	next ProxySetterStation
-}
-
-func NewSetUserNameStation(next ProxySetterStation) *SetUserNameStation {
-	return &SetUserNameStation{next}
-}
-
-func (s *SetUserNameStation) Execute(p *Proxy) error {
-	var err error
-	p.UserName, err = prompt("Username (teleport username)", func(userName string) error {
-		return nil
-	})
-
+func (p *Proxy) LoadNode() error {
+	nodeBytes, err := ioutil.ReadFile(configDir + "node_" + p.Env + ".json")
 	if err != nil {
 		return err
 	}
-
-	return determineNext(s.next, p)
-}
-
-type SetTowFAStation struct {
-	next ProxySetterStation
-}
-
-func NewSetTwoFAStation(next ProxySetterStation) *SetTowFAStation {
-	return &SetTowFAStation{next}
-}
-
-func (s *SetTowFAStation) Execute(p *Proxy) error {
-	isTwoFA, err := prompt("Is Need 2FA (Y/y/N/n)", func(towFA string) error {
-		if towFA == "Y" || towFA == "y" || towFA == "N" || towFA == "n" {
-			return nil
-		}
-		return fmt.Errorf("invalid formatting")
-	})
-
+	err = json.Unmarshal(nodeBytes, &p.Node)
 	if err != nil {
 		return err
 	}
-
-	if isTwoFA == "Y" || isTwoFA == "y" {
-		p.TwoFA = true
-	}
-
-	return determineNext(s.next, p)
-}
-
-func determineNext(next ProxySetterStation, p *Proxy) error {
-	if next != nil {
-		return next.Execute(p)
-	}
-
 	return nil
 }
