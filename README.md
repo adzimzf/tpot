@@ -4,6 +4,7 @@ list of nodes we need to go through teleport web ui then creating an alias to ac
 get list of nodes from Terminal, pick one then login to the node by `tsh`.
 
 # Feature
+![](tpot.gif)
 - Support multiple environment
 - Browsing the node list and search it
 - You're able to get the node list from a cache or fresh from the teleport server
