@@ -131,7 +131,6 @@ func getLatestNode(proxy *config.Proxy, isAppend bool) (config.Node, error) {
 		if err != nil {
 			return nodes, fmt.Errorf("failed to append nodes, err: %v", err)
 		}
-		return nodes, nil
 	}
 	go proxy.UpdateNode(nodes)
 	return nodes, nil
