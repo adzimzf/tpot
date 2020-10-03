@@ -23,7 +23,7 @@ curl  https://raw.githubusercontent.com/adzimzf/tpot/master/download.sh | sh
 ```
 or
 ```shell script
-wget  https://raw.githubusercontent.com/adzimzf/tpot/master/download.sh | sh
+wget -O - https://raw.githubusercontent.com/adzimzf/tpot/master/download.sh | sh
 ```
 
 It'll copy the binary to `/usr/bin`
