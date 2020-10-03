@@ -4,7 +4,7 @@ list of nodes we need to go through teleport web ui then creating an alias to ac
 get list of nodes from Terminal, pick one then login to the node by `tsh`.
 
 # Feature
-![](tpot.gif)
+![tpot.gif](tpot.gif)
 - Support multiple environment
 - Browsing the node list and search it
 - You're able to get the node list from a cache or fresh from the teleport server
@@ -16,14 +16,17 @@ whenever you try to get the node list it'll ask the teleport server to give the 
 
 # Install
 this tool requires `tsh` is installed in your machine.
-if you don't have it yet, you can download & install from this.
+if you don't have it yet, you can download & install from [this](https://gravitational.com/teleport/docs/user-manual/#installing-tsh).
 to install this tool you can run this command.
 ```shell script
-export BINDIR=$GOPATH/bin && \
 curl  https://raw.githubusercontent.com/adzimzf/tpot/master/download.sh | sh
 ```
+or
+```shell script
+wget  https://raw.githubusercontent.com/adzimzf/tpot/master/download.sh | sh
+```
 
-it'll copy the binary to `$GOPATH/bin`
+It'll copy the binary to `/usr/bin`
 
 # Usage
 Before use this tools you need to add proxy configuration first by run this command
@@ -40,6 +43,11 @@ if the configuration installed successfully you can start use `tpot` by running 
 ```shell script
 tpot staging
 ```
+or
+```shell script
+tpot staging -a
+```
+will get the node from the server then append to the cache,
 or 
 ```shell script
 tpot staging -r

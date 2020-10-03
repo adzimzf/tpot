@@ -9,7 +9,7 @@ usage() {
 $this: download go binaries for adzimzf/tpot
 
 Usage: $this [-b] bindir [-d] [tag]
-  -b sets bindir or installation directory, Defaults to ./bin
+  -b sets bindir or installation directory, Defaults to /usr/bin
   -d turns on debug logging
    [tag] is a tag from
    https://github.com/adzimzf/tpot/releases
@@ -23,10 +23,10 @@ EOF
 }
 
 parse_args() {
-  #BINDIR is ./bin unless set be ENV
+  #BINDIR is ./usr/bin unless set be ENV
   # over-ridden by flag below
 
-  BINDIR=${BINDIR:-./bin}
+  BINDIR=${BINDIR:-/usr/bin}
   while getopts "b:dh?x" arg; do
     case "$arg" in
       b) BINDIR="$OPTARG" ;;
@@ -55,7 +55,7 @@ execute() {
     if [ "$OS" = "windows" ]; then
       binexe="${binexe}.exe"
     fi
-    install "${srcdir}/${binexe}" "${BINDIR}/"
+    sudo install "${srcdir}/$(echo "${TARBALL}" | awk '{print tolower($0)}' | sed 's/.tar.gz//')/bin/${binexe}" "${BINDIR}/"
     log_info "installed ${BINDIR}/${binexe}"
   done
   rm -rf "${tmpdir}"
@@ -327,7 +327,7 @@ hash_sha256_verify() {
     return 1
   fi
   BASENAME=${TARGET##*/}
-  want=$(grep "${BASENAME}" "${checksums}" 2>/dev/null | tr '\t' ' ' | cut -d ' ' -f 1)
+  want=$(grep "$(echo "$BASENAME" | awk '{print tolower($0)}')" "${checksums}" 2>/dev/null | tr '\t' ' ' | cut -d ' ' -f 1)
   if [ -z "$want" ]; then
     log_err "hash_sha256_verify unable to find checksum for '${TARGET}' in '${checksums}'"
     return 1
