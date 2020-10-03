@@ -13,12 +13,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Version wil be override during build
+var Version = "DEV"
+
 func main() {
-	rootCmd.Flags().BoolP("refresh", "r", false, "refresh the node list")
-	rootCmd.Flags().BoolP("append", "a", false, "append the node list, if there's same node will be ignored")
-	rootCmd.Flags().BoolP("cfg", "c", false, "add config")
+	rootCmd.Flags().BoolP("refresh", "r", false, "Replace the node list from proxy")
+	rootCmd.Flags().BoolP("append", "a", false, "Append the fresh node list to the cache")
+	rootCmd.Flags().BoolP("cfg", "c", false, "add the teleport configuration")
+	rootCmd.Flags().BoolP("version", "v", false, "show the tpot version")
+	rootCmd.Version = Version
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("failed to execute :%v", err)
+		log.Fatalf("failed to execute :%v\n", err)
 	}
 }
 
@@ -82,7 +87,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func addConfig(cmd *cobra.Command, args []string) {
+func addConfig(cmd *cobra.Command, _ []string) {
 	err := config.AddConfig()
 	if err != nil {
 		cmd.PrintErr(err)

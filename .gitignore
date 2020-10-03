@@ -1,3 +1,9 @@
 vendor/
 .idea/
 dist/
+
+# development configuration
+dev/
+
+# tpot binary
+tpot
