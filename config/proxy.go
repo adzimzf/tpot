@@ -48,22 +48,45 @@ func NewProxy(env string) (*Proxy, error) {
 	return nil, ErrEnvNotFound
 }
 
+// AppendNode append the n to the proxy node list
+func (p *Proxy) AppendNode(n Node) (Node, error) {
+
+	pNode, err := p.GetNode()
+	if err != nil {
+		return pNode, err
+	}
+	for _, pn := range n.Items {
+		var found bool
+		for _, ni := range pNode.Items {
+			if ni.Hostname == pn.Hostname {
+				found = true
+			}
+		}
+		if !found {
+			pNode.Items = append(pNode.Items, pn)
+		}
+	}
+	return pNode, nil
+}
+
+// GetNode get the node from proxy cache
+func (p *Proxy) GetNode() (Node, error) {
+	nodeBytes, err := ioutil.ReadFile(configDir + "node_" + p.Env + ".json")
+	if err != nil {
+		return Node{}, err
+	}
+	err = json.Unmarshal(nodeBytes, &p.Node)
+	if err != nil {
+		return p.Node, err
+	}
+	return p.Node, nil
+}
+
+// UpdateNode update the cache node
 func (p *Proxy) UpdateNode(n Node) error {
 	bytes, err := json.Marshal(n)
 	if err != nil {
 		return err
 	}
 	return ioutil.WriteFile(configDir+"node_"+p.Env+".json", bytes, permission)
-}
-
-func (p *Proxy) LoadNode() error {
-	nodeBytes, err := ioutil.ReadFile(configDir + "node_" + p.Env + ".json")
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(nodeBytes, &p.Node)
-	if err != nil {
-		return err
-	}
-	return nil
 }

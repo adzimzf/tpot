@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"os/exec"
-	"strconv"
 
 	"github.com/manifoldco/promptui"
 )
@@ -56,25 +54,9 @@ func addConfigDirExist() error {
 }
 
 func prompt(label string, validate func(string2 string) error) (string, error) {
-
 	prompt := promptui.Prompt{
 		Label:    label,
 		Validate: validate,
 	}
-
 	return prompt.Run()
-}
-
-func isRoot() (bool, error) {
-	cmd := exec.Command("id", "-u")
-	output, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-	i, err := strconv.Atoi(string(output[:len(output)-1]))
-	if err != nil {
-		return false, err
-	}
-
-	return i == 0, nil
 }
