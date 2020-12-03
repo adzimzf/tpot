@@ -129,7 +129,7 @@ func (s *Scrapper) getJWTToken() (string, string, error) {
 
 func (s *Scrapper) getPassAndFactor() (string, string, error) {
 
-	pass, err := s.prompt("Password")
+	pass, err := s.prompt("Password", '*')
 	if err != nil {
 		return "", "", err
 	}
@@ -138,7 +138,7 @@ func (s *Scrapper) getPassAndFactor() (string, string, error) {
 		return pass, "", nil
 	}
 
-	twoFA, err := s.prompt("2FA Token")
+	twoFA, err := s.prompt("2FA Token", rune(0))
 	if err != nil {
 		return "", "", err
 	}
@@ -146,11 +146,11 @@ func (s *Scrapper) getPassAndFactor() (string, string, error) {
 
 }
 
-func (s *Scrapper) prompt(label string) (string, error) {
+func (s *Scrapper) prompt(label string, mask rune) (string, error) {
 
 	prompt := promptui.Prompt{
 		Label: label,
-		Mask:  '*',
+		Mask:  mask,
 	}
 
 	return prompt.Run()
