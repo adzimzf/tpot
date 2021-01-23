@@ -47,6 +47,7 @@ func (a *ArrowNav) newHandler(dir navDir) func(g *gocui.Gui, v *gocui.View) erro
 	}
 }
 
+// nextPos decide the next arrow position
 func (a *ArrowNav) nextPos(cp arrowPos, m maxXY, dir navDir) arrowPos {
 	switch dir {
 	case NavUp:

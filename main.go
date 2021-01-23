@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/adzimzf/tpot/config"
-	scapper "github.com/adzimzf/tpot/scrapper"
 	"github.com/adzimzf/tpot/tsh"
 	"github.com/adzimzf/tpot/ui"
 	"github.com/spf13/cobra"
@@ -80,7 +79,9 @@ var rootCmd = &cobra.Command{
 			cmd.PrintErrln("Pick at least one host to login")
 			return
 		}
-		err = tsh.NewTSH(proxy, host).Run()
+		// for now on we only support root user
+		// we'll multiple users in the separate PR
+		err = tsh.NewTSH(proxy).SSH("root", host)
 		if err != nil {
 			cmd.PrintErrln(err)
 		}
@@ -127,9 +128,12 @@ func getNodeItems(cmd *cobra.Command, proxy *config.Proxy) ([]string, error) {
 }
 
 func getLatestNode(proxy *config.Proxy, isAppend bool) (config.Node, error) {
-	nodes, err := scapper.NewScrapper(*proxy).GetNodes()
+	nodes, err := tsh.NewTSH(proxy).ListNodes()
 	if err != nil {
 		return nodes, fmt.Errorf("failed to get nodes: %v", err)
+	}
+	if len(nodes.Items) == 0 {
+		return nodes, fmt.Errorf("there's no nodes found")
 	}
 	if isAppend {
 		nodes, err = proxy.AppendNode(nodes)
