@@ -37,6 +37,7 @@ It'll prompt
 - `Environment` is an identifier for your proxy config, eg. `staging` and `prod`
 - `Proxy address` is a valid proxy address in http protocol, eg. `https://teleport.myport.com:3080`
 - `User name` ia a user name used for teleport login. eg. `adzimzf`
+- `Auth Connector` ia a 3rd party auth connector for SSO. eg. `gsuite`
 - `Need 2Fa` does the proxy need 2FA or not. eg `Y` or `N`
 
 if the configuration installed successfully you can start use `tpot` by running this command
@@ -52,6 +53,11 @@ or
 ```shell script
 tpot staging -r
 ```
+
+When the list of node shows, you can navigate by `RIGHT`, `LEFT`, `UP` and `DOWN`. For searching the node, you can type the `node name` then hit `TAB`.
+Hit `ENTER` to select the node and login. 
+
+
 to get the node server instead of `cache`. if it gives you an error `Permision denied`, you can manually add `tpot` config dir by running this command
 ```shell script
 mkdir $HOME/.tpot

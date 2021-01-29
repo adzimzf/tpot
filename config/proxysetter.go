@@ -18,9 +18,9 @@ func NewProxySetterStations() *ProxySetter {
 func (ps *ProxySetter) Execute(p *Proxy) error {
 	twoFAStt := NewSetTwoFAStation(nil)
 	userNameStt := NewSetUserNameStation(twoFAStt)
-	addrStt := NewSetAddressStation(userNameStt)
+	authConnectorStt := NewSetAuthConnectorStation(userNameStt)
+	addrStt := NewSetAddressStation(authConnectorStt)
 	envStt := NewSetEnvStation(addrStt)
-
 	return envStt.Execute(p)
 }
 
@@ -82,6 +82,9 @@ func NewSetUserNameStation(next ProxySetterStation) *SetUserNameStation {
 func (s *SetUserNameStation) Execute(p *Proxy) error {
 	var err error
 	p.UserName, err = prompt("Username (teleport username)", func(userName string) error {
+		if p.AuthConnector == "" {
+			return fmt.Errorf("Username OR Auth Connector is required")
+		}
 		return nil
 	})
 
@@ -114,6 +117,27 @@ func (s *SetTwoFAStation) Execute(p *Proxy) error {
 
 	if isTwoFA == "Y" || isTwoFA == "y" {
 		p.TwoFA = true
+	}
+
+	return determineNext(s.next, p)
+}
+
+type SetAuthModeStation struct {
+	next ProxySetterStation
+}
+
+func NewSetAuthConnectorStation(next ProxySetterStation) *SetAuthModeStation {
+	return &SetAuthModeStation{next}
+}
+
+func (s *SetAuthModeStation) Execute(p *Proxy) error {
+	var err error
+	p.AuthConnector, err = prompt("Auth Connector", func(towFA string) error {
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
 	return determineNext(s.next, p)

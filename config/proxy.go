@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"strings"
 )
 
 type Proxy struct {
@@ -11,11 +12,25 @@ type Proxy struct {
 	UserName string `json:"user_name"`
 	Env      string `json:"env"`
 	TwoFA    bool   `json:"two_fa"`
-	Node     Node
+
+	// For using OAUTH like GMAIL, Facebook etc
+	// empty means using username & password
+	AuthConnector string `json:"auth_connector"`
+	Node          Node
 }
 
 type Node struct {
 	Items []Item `json:"items"`
+}
+
+// LookUpIPAddress lookup the IP address by host
+func (n *Node) LookUpIPAddress(host string) (string, bool) {
+	for _, i2 := range n.Items {
+		if i2.Hostname == host {
+			return strings.Split(i2.Hostname, ":")[0], true
+		}
+	}
+	return "", false
 }
 
 type Item struct {

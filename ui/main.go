@@ -10,8 +10,12 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
+// maxScreenX maximum screen wide to show table UI
+// maxScreenY maximum screen high to show table UI
 var maxScreenX, maxScreenY int
 
+// GetSelectedHost will prompt user an table UI, and let the user
+// select node list by typing or moving with an arrow
 func GetSelectedHost(hosts []string) string {
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
@@ -55,12 +59,16 @@ func GetSelectedHost(hosts []string) string {
 
 }
 
-func lookup(keyword string, data []string) map[string]stringResult {
-	res := make(map[string]stringResult, len(data))
-	for _, datum := range data {
-		if strings.Contains(datum, strings.TrimSpace(keyword)) {
-			res[datum] = stringResult{
-				FormatedData: datum,
+func lookup(keyword string, datum []string) map[string]stringResult {
+	res := make(map[string]stringResult, len(datum))
+	for _, data := range datum {
+		if data == "" {
+			continue
+		}
+		keyword = strings.TrimSpace(keyword)
+		if strings.Contains(data, keyword) {
+			res[data] = stringResult{
+				FormatedData: data,
 			}
 		}
 	}
@@ -76,6 +84,10 @@ type stringResult struct {
 	FormatedData string
 }
 
+// formatResult colorize & create table to be shown as a string
+// d is a list of node
+// keyword is a keyword to be colorize
+// ap is the current arrow position
 func formatResult(d map[string]stringResult, keyword string, ap arrowPos) string {
 	screenMaxY := maxScreenY - 3
 	var res string
@@ -101,10 +113,12 @@ func formatResult(d map[string]stringResult, keyword string, ap arrowPos) string
 	return res
 }
 
+// arrowPos contain the X and Y of array position in the table list
 type arrowPos struct {
 	X, Y int
 }
 
+// sortKey sort the table item from A-Z to improve readability
 func sortKey(d map[string]stringResult) []string {
 	var res []string
 	for s := range d {
@@ -114,8 +128,10 @@ func sortKey(d map[string]stringResult) []string {
 	return res
 }
 
+// arrowString is a character ( > ) to indicate the current selected item
 const arrowString = "\u001B[33;1m" + " > " + "\u001B[0m"
 
+// cleanText clear the text from color character
 func cleanText(s string) string {
 	chars := []string{" ", "\u001B[33;1m", "\u001B[0m", "\u001B[37;7m", "\u001B[0m"}
 	for _, c := range chars {
