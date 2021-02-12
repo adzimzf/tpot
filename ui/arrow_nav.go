@@ -27,11 +27,11 @@ type ArrowNav struct {
 
 func (a *ArrowNav) newHandler(dir navDir) func(g *gocui.Gui, v *gocui.View) error {
 	return func(g *gocui.Gui, v *gocui.View) error {
-		resultV, err := g.View("search_result")
+		resultV, err := g.View(searchResultView)
 		if err != nil {
 			return err
 		}
-		inputV, err := g.View("search_input")
+		inputV, err := g.View(searchInputView)
 		if err != nil {
 			return err
 		}
@@ -72,7 +72,7 @@ func (a *ArrowNav) nextPos(cp arrowPos, m maxXY, dir navDir) arrowPos {
 
 func (a *ArrowNav) registerArrowNav() error {
 	for dir, key := range NavKeyMap {
-		if err := a.g.SetKeybinding("search_input", key, gocui.ModNone, a.newHandler(dir)); err != nil {
+		if err := a.g.SetKeybinding(searchInputView, key, gocui.ModNone, a.newHandler(dir)); err != nil {
 			return err
 		}
 	}

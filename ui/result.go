@@ -12,7 +12,7 @@ type keyEnterBinding struct {
 
 func (k *keyEnterBinding) register(result *string) error {
 	return k.g.SetKeybinding("", gocui.KeyEnter, gocui.ModNone, func(gui *gocui.Gui, view *gocui.View) error {
-		v, err := gui.View("search_result")
+		v, err := gui.View(searchResultView)
 		if err != nil {
 			return err
 		}
@@ -24,7 +24,7 @@ func (k *keyEnterBinding) register(result *string) error {
 func (k *keyEnterBinding) findResult(s string) string {
 	for _, st := range strings.Split(s, "\n") {
 		if strings.Contains(st, ">") {
-			for _, s2 := range strings.Split(st, "|") {
+			for _, s2 := range strings.Split(st, string(dividerChar)) {
 				if strings.Contains(s2, ">") {
 					return cleanText(strings.Replace(s2, ">", "", -1))
 				}
