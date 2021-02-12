@@ -75,7 +75,7 @@ func TestProxy_AppendNode(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			configDir = wd + "/test/"
+			Dir = wd + "/test/"
 
 			got, err := p.AppendNode(tt.args.n)
 			if (err != nil) != tt.wantErr {

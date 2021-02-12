@@ -7,3 +7,6 @@ dev/
 
 # tpot binary
 tpot
+
+# debug file
+.debug

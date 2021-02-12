@@ -31,14 +31,24 @@ It'll copy the binary to `/usr/bin`
 # Usage
 Before use this tools you need to add proxy configuration first by run this command
 ```shell script
-tpot -c
+tpot -c --add
 ```
-It'll prompt 
+It'll prompt your config editor, by default it'll use `nano`
 - `Environment` is an identifier for your proxy config, eg. `staging` and `prod`
 - `Proxy address` is a valid proxy address in http protocol, eg. `https://teleport.myport.com:3080`
 - `User name` ia a user name used for teleport login. eg. `adzimzf`
 - `Auth Connector` ia a 3rd party auth connector for SSO. eg. `gsuite`
-- `Need 2Fa` does the proxy need 2FA or not. eg `Y` or `N`
+- `Need 2Fa` does the proxy need 2FA or not. eg `true` or `false`
+
+
+you can change the default editor by running this command
+```shell script
+tpot -c --edit
+```
+or
+```shell script
+tpot --config --edit
+```
 
 if the configuration installed successfully you can start use `tpot` by running this command
 ```shell script

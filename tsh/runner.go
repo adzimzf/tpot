@@ -39,7 +39,7 @@ func (t *TSH) SSH(username, host string) error {
 
 	args = append(args, username+"@"+ipAddress)
 
-	cmd := exec.Command(tshBinary, append([]string{"ssh"}, args...)...)
+	cmd := exec.Command(t.tshBinary(), append([]string{"ssh"}, args...)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
 	cmd.Stderr = os.Stderr
@@ -58,7 +58,7 @@ func (t *TSH) ListNodes() (config.Node, error) {
 		return config.Node{}, err
 	}
 
-	cmd := exec.Command(tshBinary, append([]string{"ls"}, args...)...)
+	cmd := exec.Command(t.tshBinary(), append([]string{"ls"}, args...)...)
 	var stdOut, stdErr = &bytes.Buffer{}, &bytes.Buffer{}
 	cmd.Stdout = stdOut
 	cmd.Stdin = os.Stdin
@@ -81,7 +81,7 @@ func (t *TSH) login() error {
 
 	args = append(args, t.authFlags()...)
 
-	cmd := exec.Command(tshBinary, append([]string{"login"}, args...)...)
+	cmd := exec.Command(t.tshBinary(), append([]string{"login"}, args...)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
 	cmd.Stderr = os.Stdin
@@ -97,6 +97,7 @@ func (t *TSH) getProxyFlags() ([]string, error) {
 	return []string{"--proxy=" + proxyAddress}, nil
 }
 
+// authFlags return the authentication flags
 func (t *TSH) authFlags() []string {
 	var args []string
 	if t.proxy.AuthConnector != "" {
@@ -113,6 +114,14 @@ func (t *TSH) cleanAddress() (string, error) {
 		return "", err
 	}
 	return u.Host, nil
+}
+
+// tshBinary return the location of TSH binary
+func (t *TSH) tshBinary() string {
+	if t.proxy.TSHPath != "" {
+		return t.proxy.TSHPath
+	}
+	return tshBinary
 }
 
 func parseNodesFromString(nodeStr string) config.Node {
@@ -156,6 +165,8 @@ func parseNodesFromString(nodeStr string) config.Node {
 		Items: nodeList,
 	}
 }
+
+// NewTSH creates a new TSH
 func NewTSH(p *config.Proxy) *TSH {
 	return &TSH{
 		proxy: p,
