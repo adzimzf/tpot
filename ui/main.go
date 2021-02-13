@@ -14,6 +14,14 @@ import (
 // maxScreenY maximum screen high to show table UI
 var maxScreenX, maxScreenY int
 
+const (
+	// dividerChar is a character to create table
+	dividerChar = '│'
+
+	// arrowColorized is a character ( > ) to indicate the current selected item
+	arrowColorized = "\u001B[33;1m" + " > " + "\u001B[0m"
+)
+
 // GetSelectedHost will prompt user an table UI, and let the user
 // select node list by typing or moving with an arrow
 func GetSelectedHost(hosts []string) string {
@@ -42,8 +50,8 @@ func GetSelectedHost(hosts []string) string {
 		log.Panicln(err)
 	}
 
-	s := newSearch(g)
-	if err := s.register(hosts); err != nil {
+	s := newSearch(g, hosts)
+	if err := s.register(); err != nil {
 		log.Panicln(err)
 	}
 
@@ -68,7 +76,7 @@ func lookup(keyword string, datum []string) map[string]stringResult {
 		keyword = strings.TrimSpace(keyword)
 		if strings.Contains(data, keyword) {
 			res[data] = stringResult{
-				FormatedData: data,
+				FormattedData: data,
 			}
 		}
 	}
@@ -80,8 +88,8 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 }
 
 type stringResult struct {
-	CharMatch    int
-	FormatedData string
+	CharMatch     int
+	FormattedData string
 }
 
 // formatResult colorize & create table to be shown as a string
@@ -95,12 +103,12 @@ func formatResult(d map[string]stringResult, keyword string, ap arrowPos) string
 	newList := make([]string, screenMaxY)
 	for _, key := range sortKey(d) {
 		prefix := "   "
-		formattedHost := colorizeSelectedWord(d[key].FormatedData, keyword)
+		formattedHost := colorizeSelectedWord(d[key].FormattedData, keyword)
 		if y == ap.Y && x == ap.X {
-			prefix = arrowString
-			formattedHost = fmt.Sprintf("\u001B[33;1m%s\u001B[0m", d[key].FormatedData)
+			prefix = arrowColorized
+			formattedHost = fmt.Sprintf("\u001B[33;1m%s\u001B[0m", d[key].FormattedData)
 		}
-		newList[y] += fmt.Sprintf("%s%-60s|", prefix, formattedHost)
+		newList[y] += fmt.Sprintf("%s%-60s%s", prefix, formattedHost, string(dividerChar))
 		y++
 		if y >= screenMaxY {
 			x++
@@ -128,9 +136,6 @@ func sortKey(d map[string]stringResult) []string {
 	return res
 }
 
-// arrowString is a character ( > ) to indicate the current selected item
-const arrowString = "\u001B[33;1m" + " > " + "\u001B[0m"
-
 // cleanText clear the text from color character
 func cleanText(s string) string {
 	chars := []string{" ", "\u001B[33;1m", "\u001B[0m", "\u001B[37;7m", "\u001B[0m"}
@@ -149,7 +154,7 @@ func colorizeSelectedWord(text, keyword string) string {
 
 func findArrowPos(res string) (ap arrowPos, data []string) {
 	for i, s := range strings.Split(res, "\n") {
-		for j, q := range strings.Split(s, "|") {
+		for j, q := range strings.Split(s, string(dividerChar)) {
 			if strings.Contains(q, ">") {
 				ap.X = j
 				ap.Y = i
@@ -166,14 +171,14 @@ type maxXY struct {
 
 func findMaxXY(s string) (m maxXY) {
 	return maxXY{
-		X: len(strings.Split(s, "|")),
+		X: len(strings.Split(s, string(dividerChar))),
 		Y: len(strings.Split(strings.Trim(s, "\n"), "\n")),
 	}
 
 }
 
 func debug(s string) {
-	f, err := os.OpenFile("debug.txt", os.O_APPEND|os.O_RDWR, 777)
+	f, err := os.OpenFile(".debug", os.O_APPEND|os.O_RDWR, 777)
 	if err != nil {
 		log.Fatal(err)
 	}
