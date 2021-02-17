@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/jroimartin/gocui"
 )
@@ -177,7 +178,11 @@ func findMaxXY(s string) (m maxXY) {
 
 }
 
-func debug(s string) {
+func debug(i ...interface{}) {
+	s := time.Now().String() + "\n"
+	for _, i1 := range i {
+		s += fmt.Sprintf("%v", i1)
+	}
 	f, err := os.OpenFile(".debug", os.O_APPEND|os.O_RDWR, 777)
 	if err != nil {
 		log.Fatal(err)

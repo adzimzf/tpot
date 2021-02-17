@@ -15,13 +15,18 @@ import (
 type TSH struct {
 	proxy              *config.Proxy
 	userLogin, dstHost string
+
+	minVersion Version
 }
 
 // tshBinary is the `tsh` binary where we depends
 const tshBinary = "tsh"
 
-// tshVersion is the supported tsh binary version
+// tshVersion is the supported tsh binary Version
 const tshVersion = "v4.1.11"
+
+// ErrUnsupportedVersion indicates the current tsh version is not supported
+var ErrUnsupportedVersion = fmt.Errorf("unsupported version")
 
 // SSH run the `tsh ssh` commands
 func (t *TSH) SSH(username, host string) error {
@@ -37,7 +42,7 @@ func (t *TSH) SSH(username, host string) error {
 		return fmt.Errorf("couldn't find IP address")
 	}
 
-	args = append(args, username+"@"+ipAddress)
+	args = append(args, "-l", username, ipAddress)
 
 	cmd := exec.Command(t.tshBinary(), append([]string{"ssh"}, args...)...)
 	cmd.Stdout = os.Stdout
@@ -71,6 +76,94 @@ func (t *TSH) ListNodes() (config.Node, error) {
 	}
 
 	return parseNodesFromString(stdOut.String()), nil
+}
+
+// Version return the short tsh Version
+//
+// the tsh Version formatting is like this
+// Teleport v2.4.5.1 git:v2.4.5-19-g4901c48-dirty
+// it'll only return the v2.4.5.1
+func (t *TSH) Version() (*Version, error) {
+	cmd := exec.Command(t.tshBinary(), "version")
+	var stdOut, stdErr = &bytes.Buffer{}, &bytes.Buffer{}
+	cmd.Stdout = stdOut
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = stdErr
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	if errStr := stdErr.String(); errStr != "" {
+		return nil, errors.New(errStr)
+	}
+	out := stdOut.String()
+	if out == "" {
+		return nil, fmt.Errorf("std out is empty")
+	}
+
+	return NewVersion(out)
+}
+
+// Status return the tsh proxy status
+// this method is supported since tsh Version v2.6.1
+func (t *TSH) Status() (*config.ProxyStatus, error) {
+	cv, err := t.Version()
+	if err != nil {
+		return nil, err
+	}
+	if !t.minVersion.IsSupported(cv) {
+		return nil, ErrUnsupportedVersion
+	}
+
+	proxyFlags, err := t.getProxyFlags()
+	if err != nil {
+		return nil, err
+	}
+
+	cmd := exec.Command(t.tshBinary(), append([]string{"status"}, proxyFlags...)...)
+	var stdOut, stdErr = &bytes.Buffer{}, &bytes.Buffer{}
+	cmd.Stdout = stdOut
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = stdErr
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	if errStr := stdErr.String(); errStr != "" {
+		return nil, errors.New(errStr)
+	}
+	out := stdOut.String()
+	if out == "" {
+		return nil, fmt.Errorf("std out is empty")
+	}
+
+	return t.parseStringToStatus(out), err
+}
+
+func (t *TSH) parseStringToStatus(str string) *config.ProxyStatus {
+	str = strings.Replace(str, ">", "", -1)
+	lines := strings.Split(str, "\n")
+	res := &config.ProxyStatus{}
+	for _, line := range lines {
+		kv := strings.Split(line, ":")
+		if len(kv) <= 1 {
+			continue
+		}
+		switch strings.TrimSpace(kv[0]) {
+		case "Logged in as":
+			res.LoginAs = strings.TrimSpace(kv[1])
+		case "Roles":
+			res.Roles = trimSliceString(strings.Split(strings.TrimSpace(kv[1]), ","))
+		case "Logins":
+			res.UserLogins = trimSliceString(strings.Split(strings.TrimSpace(kv[1]), ","))
+		}
+	}
+	return res
+}
+
+func trimSliceString(list []string) (res []string) {
+	for _, s := range list {
+		res = append(res, strings.TrimSpace(s))
+	}
+	return
 }
 
 func (t *TSH) login() error {
@@ -170,5 +263,12 @@ func parseNodesFromString(nodeStr string) config.Node {
 func NewTSH(p *config.Proxy) *TSH {
 	return &TSH{
 		proxy: p,
+
+		// the minimum version for supporting Status is TSH v2.6.1
+		minVersion: Version{
+			Major: 2,
+			Minor: 6,
+			Patch: 1,
+		},
 	}
 }
