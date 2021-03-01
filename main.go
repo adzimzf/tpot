@@ -21,6 +21,7 @@ func main() {
 	rootCmd.Flags().Bool("add", false, "add the teleport configuration")
 	rootCmd.Flags().BoolP("version", "v", false, "show the tpot version")
 	rootCmd.Flags().BoolP("edit", "e", false, "edit all or specific configuration")
+	rootCmd.Flags().StringP("user", "u", "", "user to login to the desired host")
 	rootCmd.Version = Version
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("failed to execute :%v\n", err)
@@ -34,6 +35,7 @@ tpot staging          // Show the node list of staging environment
 tpot staging --edit   // Edit the staging proxy configuration
 tpot prod -a          // Get the latest node list then append to the cache for production 
 tpot prod -r          // Refresh the cache with the latest node from Teleport UI
+tpot prod -u root     // Login into production using root user
 `
 
 var rootCmd = &cobra.Command{
@@ -92,24 +94,59 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		nodesItem, err := getNodeItems(cmd, proxy)
+		node, err := handleNode(cmd, proxy)
 		if err != nil {
 			cmd.PrintErrln(err)
 			return
 		}
 
-		host := ui.GetSelectedHost(nodesItem)
+		host := ui.GetSelectedHost(node.ListHostname())
 		if host == "" {
 			cmd.PrintErrln("Pick at least one host to login")
 			return
 		}
-		// for now on we only support root user
-		// we'll support multiple users in the separate PR
-		err = tsh.NewTSH(proxy).SSH("root", host)
+
+		user, err := getUserLogin(cmd, node)
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+
+		// print to give user information
+		cmd.Printf("login using %s %s\n", user, host)
+
+		err = tsh.NewTSH(proxy).SSH(user, host)
 		if err != nil {
 			cmd.PrintErrln(err)
 		}
 	},
+}
+
+func getUserLogin(cmd *cobra.Command, node *config.Node) (string, error) {
+	userLogin, err := cmd.Flags().GetString("user")
+	if err != nil {
+		return "", err
+	}
+	if userLogin != "" {
+		return userLogin, nil
+	}
+
+	if node.Status == nil {
+		return "", fmt.Errorf("need to run using flag -a or -r to get the latest user login")
+	}
+
+	uiUser, err := ui.NewLoginUser(node.Status.UserLogins)
+	if err != nil {
+		return "", err
+	}
+	user, err := uiUser.Run()
+	if err != nil {
+		return "", err
+	}
+	if user == "" {
+		return "", fmt.Errorf("user login must not be empty")
+	}
+	return user, nil
 }
 
 func proxyEditHandler(c *config.Config, proxy *config.Proxy) error {
@@ -217,7 +254,7 @@ func configHandler(cmd *cobra.Command, c *config.Config) error {
 	return nil
 }
 
-func getNodeItems(cmd *cobra.Command, proxy *config.Proxy) ([]string, error) {
+func handleNode(cmd *cobra.Command, proxy *config.Proxy) (*config.Node, error) {
 	isRefresh, err := cmd.Flags().GetBool("refresh")
 	if err != nil {
 		return nil, err
@@ -239,30 +276,47 @@ func getNodeItems(cmd *cobra.Command, proxy *config.Proxy) ([]string, error) {
 		}
 	}
 
-	// update the latest proxy to latest nodes
-	proxy.Node = nodes
-
-	var pItems []string
-	for _, n := range nodes.Items {
-		pItems = append(pItems, n.Hostname)
-	}
-	return pItems, nil
+	return &nodes, nil
 }
 
 func getLatestNode(proxy *config.Proxy, isAppend bool) (config.Node, error) {
-	nodes, err := tsh.NewTSH(proxy).ListNodes()
+	t := tsh.NewTSH(proxy)
+	nodes, err := t.ListNodes()
 	if err != nil {
 		return nodes, fmt.Errorf("failed to get nodes: %v", err)
 	}
 	if len(nodes.Items) == 0 {
 		return nodes, fmt.Errorf("there's no nodes found")
 	}
+
 	if isAppend {
 		nodes, err = proxy.AppendNode(nodes)
 		if err != nil {
 			return nodes, fmt.Errorf("failed to append nodes, err: %v", err)
 		}
 	}
+
+	status, err := t.Status()
+	if err != nil && err != tsh.ErrUnsupportedVersion {
+		return nodes, err
+	}
+
+	// if the tsh version is not supported
+	// just hardcoded the user login to root for now
+	if err == tsh.ErrUnsupportedVersion {
+		version, err := t.Version()
+		if err != nil {
+			return config.Node{}, err
+		}
+
+		fmt.Printf("WARNING! minimum tsh version is Teleport v2.6.1 but got %s, the user login list is will be only root\n", version.Strings())
+		status = &config.ProxyStatus{
+			UserLogins: []string{"root"},
+		}
+	}
+
+	// append the status to node
+	nodes.Status = status
 	go proxy.UpdateNode(nodes)
 	return nodes, nil
 }

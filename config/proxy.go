@@ -53,7 +53,7 @@ type Proxy struct {
 	// by default it'll use your PATH location
 	TSHPath string `json:"tsh_path"       yaml:"tsh_path"`
 
-	// Node contains the node list items
+	// Node contains the node information from teleport server
 	Node Node `json:"node"           yaml:"node,omitempty"`
 }
 
@@ -77,8 +77,21 @@ func (p *Proxy) Validate() error {
 	return nil
 }
 
+// ProxyStatus contains data about proxy status
+type ProxyStatus struct {
+	// LoginAs is the username logged
+	LoginAs string `json:"login_as"`
+
+	// Roles is a list of teleport role
+	Roles []string `json:"roles"`
+
+	// UserLogins is a list of user login
+	UserLogins []string `json:"user_logins"`
+}
+
 type Node struct {
-	Items []Item `json:"items"`
+	Status *ProxyStatus `json:"status"`
+	Items  []Item       `json:"items"`
 }
 
 // LookUpIPAddress lookup the IP address by host
@@ -89,6 +102,14 @@ func (n *Node) LookUpIPAddress(host string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// ListHostname return the list of hostname
+func (n *Node) ListHostname() (res []string) {
+	for _, n := range n.Items {
+		res = append(res, n.Hostname)
+	}
+	return
 }
 
 type Item struct {
