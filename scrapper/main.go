@@ -1,4 +1,4 @@
-package scapper
+package scrapper
 
 import (
 	"bufio"

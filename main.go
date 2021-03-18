@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/adzimzf/tpot/config"
+	"github.com/adzimzf/tpot/scrapper"
 	"github.com/adzimzf/tpot/tsh"
 	"github.com/adzimzf/tpot/ui"
 	"github.com/spf13/cobra"
@@ -99,6 +100,7 @@ var rootCmd = &cobra.Command{
 			cmd.PrintErrln(err)
 			return
 		}
+		proxy.Node = *node
 
 		host := ui.GetSelectedHost(node.ListHostname())
 		if host == "" {
@@ -280,11 +282,22 @@ func handleNode(cmd *cobra.Command, proxy *config.Proxy) (*config.Node, error) {
 }
 
 func getLatestNode(proxy *config.Proxy, isAppend bool) (config.Node, error) {
+
+	var nodes config.Node
+	var err error
 	t := tsh.NewTSH(proxy)
-	nodes, err := t.ListNodes()
-	if err != nil {
-		return nodes, fmt.Errorf("failed to get nodes: %v", err)
+	if proxy.AuthConnector == "" {
+		nodes, err = scrapper.NewScrapper(*proxy).GetNodes()
+		if err != nil {
+			return nodes, fmt.Errorf("failed to get nodes: %v", err)
+		}
+	} else {
+		nodes, err = t.ListNodes()
+		if err != nil {
+			return nodes, fmt.Errorf("failed to get nodes: %v", err)
+		}
 	}
+
 	if len(nodes.Items) == 0 {
 		return nodes, fmt.Errorf("there's no nodes found")
 	}
