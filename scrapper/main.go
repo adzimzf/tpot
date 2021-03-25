@@ -23,7 +23,7 @@ type Scrapper struct {
 func NewScrapper(p config.Proxy) *Scrapper {
 	return &Scrapper{
 		proxy:  p,
-		client: http.Client{Timeout: 30 * time.Second},
+		client: http.Client{Timeout: 60 * time.Second},
 	}
 }
 
