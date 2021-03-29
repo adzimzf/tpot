@@ -25,8 +25,12 @@ or
 ```shell script
 wget -O - https://raw.githubusercontent.com/adzimzf/tpot/master/download.sh | sh
 ```
+It'll copy the binary to `/usr/bin`.
 
-It'll copy the binary to `/usr/bin`
+If you want to install into a specific directory you can add arguments `-s -- -b "directory"`, for example:
+```shell
+curl  https://raw.githubusercontent.com/adzimzf/tpot/master/download.sh | sh -s -- -b "/home/myuser/Desktop" 
+```
 
 # Usage
 Before use this tools you need to add proxy configuration first by run this command

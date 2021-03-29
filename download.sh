@@ -35,6 +35,7 @@ parse_args() {
       x) set -x ;;
     esac
   done
+  echo "Target Directory Install: $BINDIR"
   shift $((OPTIND - 1))
   TAG=$1
 }
@@ -55,7 +56,7 @@ execute() {
     if [ "$OS" = "windows" ]; then
       binexe="${binexe}.exe"
     fi
-    sudo install "${srcdir}/$(echo "${TARBALL}" | awk '{print tolower($0)}' | sed 's/.tar.gz//')/bin/${binexe}" "${BINDIR}/"
+    sudo install -t "${BINDIR}" "${srcdir}/$(echo "${TARBALL}" | awk '{print tolower($0)}' | sed 's/.tar.gz//')/bin/${binexe}" "${BINDIR}/"
     log_info "installed ${BINDIR}/${binexe}"
   done
   rm -rf "${tmpdir}"
