@@ -32,6 +32,12 @@ If you want to install into a specific directory you can add arguments `-s -- -b
 curl  https://raw.githubusercontent.com/adzimzf/tpot/master/download.sh | sh -s -- -b "/home/myuser/Desktop" 
 ```
 
+If you are familiar with `Golang/Go` and your `Golang version` is `go1.13` you can install using `go install` by running this command:
+```shell
+go get github.com/adzimzf/tpot
+go install github.com/adzimzf/tpot
+```
+
 # Usage
 Before use this tools you need to add proxy configuration first by run this command
 ```shell script
