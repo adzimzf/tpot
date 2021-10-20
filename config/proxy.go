@@ -35,26 +35,38 @@ proxies:
   # specified the tsh binary if your proxy has different tsh version
   # relative path is not supported yet
   # example /usr/bin/tsh-2
-  # default it'll use your os PATH
+  # default it'll use your OS PATH
   tsh_path: ""
+
+  # port forwarding configuration
+  forwarding:
+	interval: 30
+	nodes:
+      - host: teleport-127.0.0.1
+        user_login: root
+		local_port: 12345
+		remote_port: 9000
+		remote_host: "localhost"
 `
 
 type Proxy struct {
-	Address  string `json:"address"        yaml:"address"`
-	UserName string `json:"user_name"      yaml:"user_name"`
-	Env      string `json:"env"            yaml:"env"`
-	TwoFA    bool   `json:"two_fa"         yaml:"two_fa"`
+	Address  string `yaml:"address"        json:"address"`
+	UserName string `yaml:"user_name"      json:"user_name"`
+	Env      string `yaml:"env"            json:"env"`
+	TwoFA    bool   `yaml:"two_fa"         json:"two_fa"`
 
 	// For using OAUTH like GMAIL, Facebook etc
 	// empty means using username & password
-	AuthConnector string `json:"auth_connector" yaml:"auth_connector"`
+	AuthConnector string `yaml:"auth_connector" json:"auth_connector"`
 
 	// TSHPath is the location of TSH binary
 	// by default it'll use your PATH location
-	TSHPath string `json:"tsh_path"       yaml:"tsh_path"`
+	TSHPath string `yaml:"tsh_path"       json:"tsh_path"`
 
 	// Node contains the node information from teleport server
-	Node Node `json:"node"           yaml:"node,omitempty"`
+	Node Node `yaml:"node,omitempty" json:"node"`
+
+	Forwarding Forwarding `yaml:"forwarding"`
 }
 
 // Validate validates the proxy configuration the node will be ignored
@@ -163,4 +175,27 @@ func (p *Proxy) UpdateNode(n Node) error {
 
 func (p *Proxy) save(date []byte) error {
 	return ioutil.WriteFile(Dir+"node_"+p.Env+".json", date, permission)
+}
+
+type Forwarding struct {
+	Interval int               `yaml:"interval"`
+	Nodes    []*ForwardingNode `yaml:"nodes"`
+}
+
+type ForwardingNode struct {
+	Host       string `yaml:"host"`
+	ListenPort string `yaml:"listen_port"`
+	RemotePort string `yaml:"remote_port"`
+	RemoteHost string `yaml:"remote_host"`
+	UserLogin  string `yaml:"user_login"`
+	Status     bool   `yaml:"-"`
+	Error      string `yaml:"-"`
+}
+
+func (b *ForwardingNode) ViewName() string {
+	return fmt.Sprintf("%s_%s_%s_%s", b.Host, b.ListenPort, b.RemotePort, b.RemoteHost)
+}
+
+func (b *ForwardingNode) Address() string {
+	return fmt.Sprintf("%s:%s:%s", b.ListenPort, b.RemoteHost, b.RemotePort)
 }

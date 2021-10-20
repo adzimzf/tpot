@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/adzimzf/tpot/editor"
@@ -14,6 +15,7 @@ import (
 
 var (
 	// Dir is the path where tpot store the configuration & cache
+	// Dir will be overridden by flag -D
 	Dir = os.Getenv("HOME") + "/.tpot/"
 
 	// ErrValidateConfig is an error to indicate config is invalid
@@ -35,7 +37,14 @@ type Config struct {
 }
 
 // NewConfig load config from the file and create it if no exist
-func NewConfig() (*Config, error) {
+func NewConfig(isDev bool) (*Config, error) {
+	if isDev {
+		path, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+		Dir = path + "/dev/"
+	}
 	if err := addConfigDirExist(); err != nil {
 		return nil, err
 	}
@@ -93,7 +102,7 @@ func (c *Config) Add() (string, error) {
 	return c.AddPlain(proxyTemplate)
 }
 
-// Add adds a new proxy configuration by plain configuration
+// AddPlain adds a new proxy configuration by plain configuration
 func (c *Config) AddPlain(configPlain string) (string, error) {
 	result, err := editor.Edit(configPlain, "add_proxy*.yaml")
 	if err != nil {

@@ -3,7 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net"
+	"time"
 
 	"github.com/adzimzf/tpot/config"
 	"github.com/adzimzf/tpot/scrapper"
@@ -15,14 +18,21 @@ import (
 // Version wil be override during build
 var Version = "DEV"
 
+var (
+	isConfig  bool
+	isForward bool
+)
+
 func main() {
+	rootCmd.Flags().BoolVarP(&isConfig, "config", "c", false, "show the configuration list")
+	rootCmd.Flags().BoolVarP(&isForward, "forwarding", "L", false, "use ths ssh for port forwarding")
 	rootCmd.Flags().BoolP("refresh", "r", false, "Replace the node list from proxy")
 	rootCmd.Flags().BoolP("append", "a", false, "Append the fresh node list to the cache")
-	rootCmd.Flags().BoolP("config", "c", false, "show the configuration list")
 	rootCmd.Flags().Bool("add", false, "add the teleport configuration")
 	rootCmd.Flags().BoolP("version", "v", false, "show the tpot version")
 	rootCmd.Flags().BoolP("edit", "e", false, "edit all or specific configuration")
 	rootCmd.Flags().StringP("user", "u", "", "user to login to the desired host")
+	rootCmd.Flags().BoolP("developer", "D", false, "used only for developing this application")
 	rootCmd.Version = Version
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("failed to execute :%v\n", err)
@@ -37,6 +47,7 @@ tpot staging --edit   // Edit the staging proxy configuration
 tpot prod -a          // Get the latest node list then append to the cache for production 
 tpot prod -r          // Refresh the cache with the latest node from Teleport UI
 tpot prod -u root     // Login into production using root user
+tpot prod -L          // Run the tsh forwarding based on the config list
 `
 
 var rootCmd = &cobra.Command{
@@ -46,23 +57,42 @@ var rootCmd = &cobra.Command{
 	Example: example,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		cfg, err := config.NewConfig()
+		isDev, err := cmd.Flags().GetBool("developer")
+		if err != nil {
+			cmd.PrintErrln("failed to get config due to ", err)
+			return
+		}
+
+		cfg, err := config.NewConfig(isDev)
 		if err != nil {
 			cmd.PrintErrln("failed to get config, error:", err)
 			return
 		}
 
-		isCfg, err := cmd.Flags().GetBool("config")
-		if err != nil {
-			cmd.PrintErrln("failed to get config due to ", err)
-			return
-		}
-		if isCfg {
+		switch {
+		case isConfig:
 			// the error has already beautify by the handler
 			if err := configHandler(cmd, cfg); err != nil {
 				cmd.PrintErrln(err)
 			}
 			return
+		case isForward:
+			proxy, err := cfg.FindProxy(args[0])
+			if errors.Is(err, config.ErrEnvNotFound) {
+				cmd.PrintErrf("Env %s not found\n\n", args[0])
+				cmd.Help()
+				return
+			}
+			f := fwd{
+				tsh:  tsh.NewTSH(proxy),
+				list: proxy.Forwarding.Nodes,
+			}
+			err = f.Run()
+			if err != nil {
+				cmd.PrintErrf("Error: %s\n", err.Error())
+			}
+			return
+
 		}
 
 		if len(args) < 1 {
@@ -332,4 +362,73 @@ func getLatestNode(proxy *config.Proxy, isAppend bool) (config.Node, error) {
 	nodes.Status = status
 	go proxy.UpdateNode(nodes)
 	return nodes, nil
+}
+
+type fwd struct {
+	tsh  *tsh.TSH
+	list []*config.ForwardingNode
+}
+
+func (f *fwd) Run() error {
+	if len(f.list) == 0 {
+		return fmt.Errorf("forwarding configuration is empty")
+	}
+	for _, node := range f.list {
+		go func(node *config.ForwardingNode) {
+			for {
+				if node.UserLogin == "" {
+					node.Status = false
+					node.Error = "user login empty"
+					return
+				}
+
+				if node.Host == "" {
+					node.Status = false
+					node.Error = "host empty"
+					return
+				}
+
+				in := &sleepReader{dur: 3 * time.Minute}
+				err := f.tsh.Forward(node.UserLogin, node.Host, node.Address(), in)
+				if err != nil {
+					node.Status = false
+					node.Error = err.Error()
+					return
+				}
+				node.Status = true
+			}
+		}(node)
+	}
+	go f.doHealthCheck()
+	ui.NewForwarding(f.list)
+	return nil
+}
+
+func (f *fwd) doHealthCheck() {
+	for {
+		for _, node := range f.list {
+			go func(node *config.ForwardingNode) {
+				timeout := time.Second
+				_, err := net.DialTimeout("tcp", net.JoinHostPort("localhost", node.ListenPort), timeout)
+				if err != nil {
+					node.Status = false
+					node.Error = err.Error()
+					return
+				}
+				node.Status = true
+				node.Error = ""
+			}(node)
+		}
+		time.Sleep(2 * time.Second)
+	}
+}
+
+type sleepReader struct {
+	dur time.Duration
+}
+
+// Read will only delay the reader then return error
+func (f *sleepReader) Read(p []byte) (n int, err error) {
+	time.Sleep(f.dur)
+	return 0, io.EOF
 }
