@@ -1,0 +1,92 @@
+#compdef tpot
+
+__tpot_arguments() {
+    if zstyle -t ":completion:${curcontext}:" option-stacking; then
+        print -- -s
+    fi
+}
+
+__tpot_config_cmd(){
+    local curcontext="$curcontext" state line help="-h --help"
+    integer ret=1
+    typeset -A opt_args
+
+    _arguments $(__tpot_arguments) -C \
+        "(: -)"{-h,--help}"[Print usage]" \
+        "($help)--add[Add the new proxy configuration]" \
+        "($help -e --edit)"{-e,--edit}"[Edit the global proxy configuration]" \
+        "($help -v --version)"{-v,--version}"[Print version information and quit]" && ret=0
+
+    return ret
+}
+
+__tpot_proxy_cmd(){
+    integer ret=1
+    typeset -A opt_args
+
+    #print $#words
+    if [[ $#words -ge 3 ]]; then
+        #print "words more than 3"
+        return 0
+    fi
+
+    local curcontext="$curcontext"
+
+    _arguments $(__tpot_arguments) -C \
+        "(: -)"{-h,--help}"[Print usage]" \
+        "($help)--add[Add the new proxy configuration]" \
+        "($help -e --edit)"{-e,--edit}"[Edit the global proxy configuration]" \
+        "($help -a --append)"{-a,--append}"[Append the fresh node list to the cache]" \
+        "($help -D --developer)"{-D,--developer}"[Used only for developing this application]" \
+        "($help -L --forwarding)"{-L,--forwarding}"[Use ths tsh SSH for port forwarding]" \
+        "($help -R --refresh)"{-R,--refresh}"[Replace the node list from proxy]" \
+        "($help -u --user=)"{-u=,--user=}"[Specific user to login to the desired host]:user:(root bejo hasim)" \
+        "($help -v --version)"{-v,--version}"[Print version information and quit]" && ret=0
+
+    return ret
+}
+
+__tpot_proxy() {
+    integer ret=1
+    local -a proxies lines
+    lines=(${(f)"$(_call_program commands tpot --config 2>&1)"})
+    for line in $lines; do
+      if [[ $line = (*env:*) ]]; then
+        proxies=($proxies "${line##*env: }")
+      fi
+    done
+    _describe 'command' proxies && ret=0
+    return ret
+}
+
+
+_tpot() {
+
+    local curcontext="$curcontext" state line help="-h --help"
+    integer ret=1
+    typeset -A opt_args
+
+    _arguments $(__tpot_arguments) -C \
+        "(: -)"{-h,--help}"[Print usage]" \
+        "($help -c --config)"{-c,--config}"[Show and edit the tpot configuration]: :__tpot_config_cmd" \
+        "($help -H --host)"{-H=,--host=}"[tcp://host:port to bind/connect to]:host: " \
+        "($help -l --log-level)"{-l=,--log-level=}"[Logging level]:level:(debug info warn error fatal)" \
+        "($help -v --version)"{-v,--version}"[Print version information and quit]" \
+        "($help -): :->proxy" \
+        "($help -)*:: :->option-or-argument"&& ret=0
+
+    case $state in
+        (proxy)
+            __tpot_proxy && ret=0
+        ;;
+        (option-or-argument)
+            curcontext=${curcontext%:*:*}:$words[1]:
+            # shift 1 words
+            __tpot_proxy_cmd && ret=0
+        ;;
+    esac
+
+    return ret
+}
+
+_tpot "$@"
