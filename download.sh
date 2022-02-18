@@ -56,7 +56,7 @@ execute() {
     if [ "$OS" = "windows" ]; then
       binexe="${binexe}.exe"
     fi
-    sudo install -t "${BINDIR}" "${srcdir}/$(echo "${TARBALL}" | awk '{print tolower($0)}' | sed 's/.tar.gz//')/bin/${binexe}" "${BINDIR}/"
+    sudo install "${srcdir}/$(echo "${TARBALL}" | awk '{print tolower($0)}' | sed 's/.tar.gz//')/bin/${binexe}" "${BINDIR}/"
     log_info "installed ${BINDIR}/${binexe}"
   done
   rm -rf "${tmpdir}"
@@ -393,7 +393,7 @@ function install_zsh_autocomplete() {
     # This script will install the tpot autocomplete in zsh
 
     if [ ! -f ~/.zshrc ]; then
-        echo "zsh is not installed"
+        log_crit "zsh is not installed"
         exit 0
     fi
 
@@ -404,11 +404,11 @@ function install_zsh_autocomplete() {
 
     tpot_path=~/.tpot
     if [ ! -d $tpot_path ]; then
-        echo "creating the tpot config"
+        log_info "creating the tpot config"
         mkdir $tpot_path
     fi
 
     http_download $tpot_path "https://raw.githubusercontent.com/${OWNER}/${REPO}/master/_tpot"
 }
-
+log_info "installing zsh autocomplete"
 install_zsh_autocomplete
