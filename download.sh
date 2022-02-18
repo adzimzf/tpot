@@ -386,3 +386,29 @@ CHECKSUM_URL=${GITHUB_DOWNLOAD}/${TAG}/${CHECKSUM}
 
 
 execute
+
+
+function install_zsh_autocomplete() {
+    # Readme
+    # This script will install the tpot autocomplete in zsh
+
+    if [ ! -f ~/.zshrc ]; then
+        echo "zsh is not installed"
+        exit 0
+    fi
+
+    if grep -q "fpath=(${HOME}/.tpot \$fpath)" $HOME/.zshrc; then
+      # the config already exist, doesen't need to add
+      exit 0
+    fi
+
+    tpot_path=~/.tpott
+    if [ ! -d $tpot_path ]; then
+        echo "creating the tpot config"
+        mkdir $tpot_path
+    fi
+
+    http_download $tpot_path "https://raw.githubusercontent.com/${OWNER}/${REPO}/master/_tpot"
+}
+
+install_zsh_autocomplete
