@@ -402,7 +402,7 @@ function install_zsh_autocomplete() {
       exit 0
     fi
 
-    tpot_path=~/.tpott
+    tpot_path=~/.tpot
     if [ ! -d $tpot_path ]; then
         echo "creating the tpot config"
         mkdir $tpot_path
