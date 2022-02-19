@@ -13,7 +13,7 @@ builds:
         - -X main.updaterEnabled=cli/cli
     id: macos
     goos: [ darwin ]
-    goarch: [ amd64 ]
+    goarch: [ amd64, arm64 ]
 
   - <<: *build_defaults
     id: linux
@@ -56,7 +56,7 @@ changelog:
     - '^docs:'
     - '^test:'
 
-# currently can't be used due to the popularity of this tool
+# currently, can't be used due to the popularity of this tool
 brews:
   - name: tpot
 

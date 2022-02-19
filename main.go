@@ -77,15 +77,28 @@ var rootCmd = &cobra.Command{
 			}
 			return
 		case isForward:
+			if len(args) < 1 {
+				cmd.Help()
+				return
+			}
+
 			proxy, err := cfg.FindProxy(args[0])
 			if errors.Is(err, config.ErrEnvNotFound) {
 				cmd.PrintErrf("Env %s not found\n\n", args[0])
 				cmd.Help()
 				return
 			}
+
+			host := ui.GetSelectedHost(proxy.Node.ListHostname())
+			if host == "" {
+				cmd.PrintErrln("Pick at least one host to login")
+				return
+			}
+
 			f := fwd{
-				tsh:  tsh.NewTSH(proxy),
-				list: proxy.Forwarding.Nodes,
+				tsh:      tsh.NewTSH(proxy),
+				list:     proxy.Forwarding.Nodes,
+				nodeHost: host,
 			}
 			err = f.Run()
 			if err != nil {
@@ -365,8 +378,9 @@ func getLatestNode(proxy *config.Proxy, isAppend bool) (config.Node, error) {
 }
 
 type fwd struct {
-	tsh  *tsh.TSH
-	list []*config.ForwardingNode
+	tsh      *tsh.TSH
+	nodeHost string
+	list     []*config.ForwardingNode
 }
 
 func (f *fwd) Run() error {
@@ -389,7 +403,7 @@ func (f *fwd) Run() error {
 				}
 
 				in := &sleepReader{dur: 3 * time.Minute}
-				err := f.tsh.Forward(node.UserLogin, node.Host, node.Address(), in)
+				err := f.tsh.Forward(node.UserLogin, f.nodeHost, node.Address(), in)
 				if err != nil {
 					node.Status = false
 					node.Error = err.Error()
