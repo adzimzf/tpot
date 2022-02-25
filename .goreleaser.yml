@@ -74,20 +74,27 @@ brews:
       owner: adzimzf
       name: homebrew-tpot
 
+      # Optionally a branch can be provided.
+      # Defaults to the default repository branch.
+      branch: main
+
+      # Optionally a token can be provided, if it differs from the token provided to GoReleaser
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+
     # Template for the url which is determined by the given Token (github or gitlab)
     # Default for github is "https://github.com/<repo_owner>/<repo_name>/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     # Default for gitlab is "https://gitlab.com/<repo_owner>/<repo_name>/uploads/{{ .ArtifactUploadHash }}/{{ .ArtifactName }}"
-    url_template: "http://github.mycompany.com/foo/bar/releases/{{ .Tag }}/{{ .ArtifactName }}"
+    url_template: "http://github.com/adzimzf/tpot/releases/tag/{{ .Tag }}/{{ .ArtifactName }}"
 
     # Allows you to set a custom download strategy. Note that you'll need
     # to implement the strategy and add it to your tap repository.
     # Example: https://docs.brew.sh/Formula-Cookbook#specifying-the-download-strategy-explicitly
     # Default is empty.
-    download_strategy: CurlDownloadStrategy.
+    download_strategy: CurlDownloadStrategy
 
     # Allows you to add a custom require_relative at the top of the formula template
     # Default is empty
-    custom_require: custom_download_strategy
+    # custom_require:
 
     # Git author used to commit to the repository.
     # Defaults are shown.
@@ -120,7 +127,6 @@ brews:
     # Default is empty.
     custom_block: |
       head "https://github.com/adzimzf/tpot.git"
-      ...
 
     # Packages your package depends on.
     dependencies:
@@ -131,13 +137,11 @@ brews:
     # Specify for packages that run as a service.
     # Default is empty.
     plist: |
-      ...
 
     # So you can `brew test` your formula.
     # Default is empty.
     test: |
       system "#{bin}/tpot --version"
-      ...
 
     # Custom install script for brew.
     # Default is 'bin.install "program"'.

@@ -65,8 +65,10 @@ get_binaries() {
   case "$PLATFORM" in
     darwin/386) BINARIES="tpot" ;;
     darwin/amd64) BINARIES="tpot" ;;
+    darwin/arm64) BINARIES="tpot" ;;
     linux/386) BINARIES="tpot" ;;
     linux/amd64) BINARIES="tpot" ;;
+    linux/arm64) BINARIES="tpot" ;;
     *)
       log_crit "platform $PLATFORM is not supported.  Make sure this script is up-to-date and file request at https://github.com/${PREFIX}/issues/new"
       exit 1
@@ -97,7 +99,7 @@ adjust_os() {
   case ${OS} in
     386) OS=i386 ;;
     amd64) OS=x86_64 ;;
-    darwin) OS=Darwin ;;
+    darwin) OS=macOS ;;
     linux) OS=Linux ;;
     windows) OS=Windows ;;
   esac
@@ -329,8 +331,12 @@ hash_sha256_verify() {
   fi
   BASENAME=${TARGET##*/}
   want=$(grep "$(echo "$BASENAME" | awk '{print tolower($0)}')" "${checksums}" 2>/dev/null | tr '\t' ' ' | cut -d ' ' -f 1)
+  if [[ $BASENAME =~ (OS) ]]; then
+    want=$(grep "${BASENAME}" "${checksums}" 2>/dev/null | tr '\t' ' ' | cut -d ' ' -f 1)
+  fi
+  
   if [ -z "$want" ]; then
-    log_err "hash_sha256_verify unable to find checksum for '${TARGET}' in '${checksums}'"
+    log_err "hash_sha256_verify unable to find checksum for '${TARGET}' in '${checksums}', expected found $(echo "$BASENAME" | awk '{print tolower($0)}')"
     return 1
   fi
   got=$(hash_sha256 "$TARGET")
