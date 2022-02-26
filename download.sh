@@ -331,7 +331,7 @@ hash_sha256_verify() {
   fi
   BASENAME=${TARGET##*/}
   want=$(grep "$(echo "$BASENAME" | awk '{print tolower($0)}')" "${checksums}" 2>/dev/null | tr '\t' ' ' | cut -d ' ' -f 1)
-  if [[ $BASENAME =~ (OS) ]]; then
+  if [ $BASENAME = *"OS"* ]; then
     want=$(grep "${BASENAME}" "${checksums}" 2>/dev/null | tr '\t' ' ' | cut -d ' ' -f 1)
   fi
   
