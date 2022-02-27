@@ -30,13 +30,17 @@ archives:
     builds: [macos, linux]
     <<: &archive_defaults
       name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-    wrap_in_directory: true
+    wrap_in_directory: "true"
     replacements:
       darwin: macOS
     format: tar.gz
+
+    # Additional files/template/globs you want to add to the archive.
+    # Defaults are any files matching `LICENSE*`, `README*`, `CHANGELOG*`,
+    #  `license*`, `readme*` and `changelog*`.
     files:
-      - LICENSE
-      - ./share/man/man1/gh*.1
+      - completions/*
+
   - id: windows
     builds: [windows]
     <<: *archive_defaults
@@ -84,7 +88,7 @@ brews:
     # Template for the url which is determined by the given Token (github or gitlab)
     # Default for github is "https://github.com/<repo_owner>/<repo_name>/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     # Default for gitlab is "https://gitlab.com/<repo_owner>/<repo_name>/uploads/{{ .ArtifactUploadHash }}/{{ .ArtifactName }}"
-    url_template: "http://github.com/adzimzf/tpot/releases/tag/{{ .Tag }}/{{ .ArtifactName }}"
+    # url_template: "http://github.com/adzimzf/tpot/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
 
     # Allows you to set a custom download strategy. Note that you'll need
     # to implement the strategy and add it to your tap repository.
@@ -130,7 +134,8 @@ brews:
 
     # Packages your package depends on.
     dependencies:
-      - name: git
+      - name: tsh
+        type: optional
       - name: zsh
         type: optional
 
@@ -146,4 +151,5 @@ brews:
     # Custom install script for brew.
     # Default is 'bin.install "program"'.
     install: |
-      bin.install "program"
+      bin.install "bin/tpot"
+      zsh_completion.install "completions/zsh/_tpot"
