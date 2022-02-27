@@ -56,7 +56,16 @@ execute() {
     if [ "$OS" = "windows" ]; then
       binexe="${binexe}.exe"
     fi
-    sudo install "${srcdir}/$(echo "${TARBALL}" | awk '{print tolower($0)}' | sed 's/.tar.gz//')/bin/${binexe}" "${BINDIR}/"
+
+    # check running the terminal, if it's running under termux
+    # the installation doesn't need to use sudo
+    # because termux doesn't have sudo
+    if [ -x "$(command -v termux-setup-storage)" ]; then
+      install "${srcdir}/$(echo "${TARBALL}" | awk '{print tolower($0)}' | sed 's/.tar.gz//')/bin/${binexe}" "${BINDIR}/"
+    else
+      sudo install "${srcdir}/$(echo "${TARBALL}" | awk '{print tolower($0)}' | sed 's/.tar.gz//')/bin/${binexe}" "${BINDIR}/"
+    fi
+
     log_info "installed ${BINDIR}/${binexe}"
   done
   rm -rf "${tmpdir}"
@@ -390,11 +399,10 @@ TARBALL_URL=${GITHUB_DOWNLOAD}/${TAG}/${TARBALL}
 CHECKSUM=checksums.txt
 CHECKSUM_URL=${GITHUB_DOWNLOAD}/${TAG}/${CHECKSUM}
 
-
 execute
 
 
-function install_zsh_autocomplete() {
+install_zsh_autocomplete() {
     # Readme
     # This script will install the tpot autocomplete in zsh
 
@@ -414,7 +422,7 @@ function install_zsh_autocomplete() {
         mkdir $tpot_path
     fi
 
-    http_download $tpot_path "https://raw.githubusercontent.com/${OWNER}/${REPO}/master/_tpot"
+    http_download $tpot_path "https://raw.githubusercontent.com/${OWNER}/${REPO}/master/completions/zsh/_tpot"
 }
 log_info "installing zsh autocomplete"
 install_zsh_autocomplete
