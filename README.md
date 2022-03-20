@@ -15,8 +15,18 @@ whenever you try to get the node list it'll ask the teleport server to give the 
  in the configuration file for caching purpose.
 
 # Install
-this tool requires `tsh` is installed in your machine.
+
+This tool requires `tsh` is installed in your machine.
 if you don't have it yet, you can download & install from [this](https://gravitational.com/teleport/docs/user-manual/#installing-tsh).
+
+## Brew
+```shell script
+brew tap adzimzf/tpot
+brew install tpot
+```
+
+## Curl or Wget
+
 to install this tool you can run this command.
 ```shell script
 curl  https://raw.githubusercontent.com/adzimzf/tpot/master/download.sh | sh
@@ -32,6 +42,7 @@ If you want to install into a specific directory you can add arguments `-s -- -b
 curl  https://raw.githubusercontent.com/adzimzf/tpot/master/download.sh | sh -s -- -b "/home/myuser/Desktop" 
 ```
 
+## Build from source
 If you are familiar with `Golang/Go` and your `Golang version` is `go1.13` you can install using `go install` by running this command:
 ```shell
 go get github.com/adzimzf/tpot
