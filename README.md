@@ -43,7 +43,7 @@ curl  https://raw.githubusercontent.com/adzimzf/tpot/master/download.sh | sh -s 
 ```
 
 ## Build from source
-If you are familiar with `Golang/Go` and your `Golang version` is `go1.13` you can install using `go install` by running this command:
+If you are familiar with `Golang/Go` and your `Golang version` is `go1.16` you can install using `go install` by running this command:
 ```shell
 go get github.com/adzimzf/tpot
 go install github.com/adzimzf/tpot
