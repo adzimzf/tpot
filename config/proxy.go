@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -40,13 +41,93 @@ proxies:
 
   # port forwarding configuration
   forwarding:
+	# how ofter the forwarding will reload
 	interval: 30
+	
+	# the list of nodes to be forward
 	nodes:
       - host: teleport-127.0.0.1
         user_login: root
 		local_port: 12345
 		remote_port: 9000
 		remote_host: "localhost"
+`
+
+const proxyTemplateFormat = `
+---
+proxies:
+  # environment name that will be use for accessing proxy
+  # the recommendation is simple & easy to remember
+  # if you set as staging you can access by tpot staging
+- env: %s
+
+  # proxy address example https://teleport.mine.com
+  address: "%s"
+  
+  # proxy username example john.doe@mycomp.com or adzimzf
+  # if you're using auth_connector it can be empty
+  user_name: "%s"
+
+  # if your proxy server using auth connector such as gsuite, facebook & okta
+  auth_connector: "%s"
+
+  # is your proxy server need two factor authentication
+  two_fa: %s
+
+  # specified the tsh binary if your proxy has different tsh version
+  # relative path is not supported yet
+  # example /usr/bin/tsh-2
+  # default it'll use your OS PATH
+  tsh_path: %s
+
+  # port forwarding configuration
+  forwarding:
+    # how ofter the forwarding will reload in seconds
+    # default is 300 seconds
+    interval: %d
+    
+    # the list of nodes to be forward
+    nodes:`
+
+const forwardingTemplate = `
+      # the server host. example: teleport1-127.34.23.56
+      # default will be selected
+      - host:
+        # user to login. example: root
+        # default will be selected
+        user_login: "%s"
+
+        # the local port to be forward
+        # required
+        listen_port: "%s"
+
+        # the remote port to be forwarded
+        # required
+        remote_port: "%s"
+
+        # the remote host to be forwarded
+        # required
+        remote_host: "%s"
+`
+const forwardingTemplateExample = `
+      # the server host. example: teleport1-127.34.23.56
+      # default will be selected
+      #- host:
+        # user to login. example: root
+        # default will be selected
+        #user_login:
+
+        # the local port to be forward
+        # required
+        #listen_port: 
+
+        # the remote port to be forwarded
+        # required
+        #remote_port: 
+
+        # the remote host to be forwarded
+        # required
+        #remote_host: 
 `
 
 type Proxy struct {
@@ -87,6 +168,27 @@ func (p *Proxy) Validate() error {
 	}
 
 	return nil
+}
+
+// ToEditString generate the string for edit
+func (p *Proxy) ToEditString() (string, error) {
+	res := fmt.Sprintf(proxyTemplateFormat,
+		p.Env, p.Address, p.UserName,
+		p.AuthConnector,
+		strconv.FormatBool(p.TwoFA),
+		p.TSHPath,
+		p.Forwarding.Interval,
+	)
+
+	if len(p.Forwarding.Nodes) == 0 {
+		return fmt.Sprintf("%s%s", res, forwardingTemplateExample), nil
+	}
+	for _, node := range p.Forwarding.Nodes {
+		nodeStr := fmt.Sprintf(forwardingTemplate, node.UserLogin, node.ListenPort, node.RemotePort, node.RemoteHost)
+		res = fmt.Sprintf("%s%s", res, nodeStr)
+	}
+
+	return res, nil
 }
 
 // ProxyStatus contains data about proxy status

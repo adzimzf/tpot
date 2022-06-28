@@ -152,16 +152,20 @@ func (c *Config) Edit(envName string) (string, error) {
 		return "", fmt.Errorf("proxy %s is not found", envName)
 	}
 
-	tmpConfig := Config{
-		Proxies: []*Proxy{
-			proxy,
-		},
-	}
-	marshal, err := yaml.Marshal(tmpConfig)
+	//tmpConfig := Config{
+	//	Proxies: []*Proxy{
+	//		proxy,
+	//	},
+	//}
+	//marshal, err := yaml.Marshal(tmpConfig)
+	//if err != nil {
+	//	return "", fmt.Errorf("proxy confugration is invalid")
+	//}
+	toEditString, err := proxy.ToEditString()
 	if err != nil {
-		return "", fmt.Errorf("proxy confugration is invalid")
+		return "", err
 	}
-	return c.EditPlain(envName, string(marshal))
+	return c.EditPlain(envName, toEditString)
 }
 
 // EditPlain edit specific proxy configuration by config plain

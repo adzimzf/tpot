@@ -89,16 +89,30 @@ var rootCmd = &cobra.Command{
 				return
 			}
 
+			node, err := handleNode(cmd, proxy)
+			if err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			proxy.Node = *node
+
 			host := ui.GetSelectedHost(proxy.Node.ListHostname())
 			if host == "" {
 				cmd.PrintErrln("Pick at least one host to login")
 				return
 			}
 
+			user, err := getUserLogin(cmd, &proxy.Node)
+			if err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+
 			f := fwd{
-				tsh:      tsh.NewTSH(proxy),
-				list:     proxy.Forwarding.Nodes,
-				nodeHost: host,
+				tsh:         tsh.NewTSH(proxy),
+				list:        proxy.Forwarding.Nodes,
+				nodeHost:    host,
+				defaultUser: user,
 			}
 			err = f.Run()
 			if err != nil {
@@ -378,9 +392,10 @@ func getLatestNode(proxy *config.Proxy, isAppend bool) (config.Node, error) {
 }
 
 type fwd struct {
-	tsh      *tsh.TSH
-	nodeHost string
-	list     []*config.ForwardingNode
+	tsh         *tsh.TSH
+	nodeHost    string
+	list        []*config.ForwardingNode
+	defaultUser string
 }
 
 func (f *fwd) Run() error {
@@ -391,19 +406,19 @@ func (f *fwd) Run() error {
 		go func(node *config.ForwardingNode) {
 			for {
 				if node.UserLogin == "" {
-					node.Status = false
-					node.Error = "user login empty"
-					return
+					node.UserLogin = f.defaultUser
 				}
 
 				if node.Host == "" {
-					node.Status = false
-					node.Error = "host empty"
-					return
+					node.Host = f.nodeHost
 				}
 
 				in := &sleepReader{dur: 3 * time.Minute}
 				err := f.tsh.Forward(node.UserLogin, f.nodeHost, node.Address(), in)
+				if err == io.EOF {
+					node.Status = true
+					continue
+				}
 				if err != nil {
 					node.Status = false
 					node.Error = err.Error()
