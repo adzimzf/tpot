@@ -404,28 +404,7 @@ func (f *fwd) Run() error {
 	}
 	for _, node := range f.list {
 		go func(node *config.ForwardingNode) {
-			for {
-				if node.UserLogin == "" {
-					node.UserLogin = f.defaultUser
-				}
-
-				if node.Host == "" {
-					node.Host = f.nodeHost
-				}
-
-				in := &sleepReader{dur: 3 * time.Minute}
-				err := f.tsh.Forward(node.UserLogin, f.nodeHost, node.Address(), in)
-				if err == io.EOF {
-					node.Status = true
-					continue
-				}
-				if err != nil {
-					node.Status = false
-					node.Error = err.Error()
-					return
-				}
-				node.Status = true
-			}
+			f.execForwarding(node)
 		}(node)
 	}
 	go f.doHealthCheck()
@@ -442,6 +421,7 @@ func (f *fwd) doHealthCheck() {
 				if err != nil {
 					node.Status = false
 					node.Error = err.Error()
+					f.execForwarding(node)
 					return
 				}
 				node.Status = true
@@ -449,6 +429,31 @@ func (f *fwd) doHealthCheck() {
 			}(node)
 		}
 		time.Sleep(2 * time.Second)
+	}
+}
+
+func (f *fwd) execForwarding(node *config.ForwardingNode) {
+	for {
+		if node.UserLogin == "" {
+			node.UserLogin = f.defaultUser
+		}
+
+		if node.Host == "" {
+			node.Host = f.nodeHost
+		}
+
+		in := &sleepReader{dur: 3 * time.Minute}
+		err := f.tsh.Forward(node.UserLogin, f.nodeHost, node.Address(), in)
+		if err == io.EOF {
+			node.Status = true
+			continue
+		}
+		if err != nil {
+			node.Status = false
+			node.Error = err.Error()
+			return
+		}
+		node.Status = true
 	}
 }
 
