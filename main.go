@@ -89,16 +89,30 @@ var rootCmd = &cobra.Command{
 				return
 			}
 
+			node, err := handleNode(cmd, proxy)
+			if err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			proxy.Node = *node
+
 			host := ui.GetSelectedHost(proxy.Node.ListHostname())
 			if host == "" {
 				cmd.PrintErrln("Pick at least one host to login")
 				return
 			}
 
+			user, err := getUserLogin(cmd, &proxy.Node)
+			if err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+
 			f := fwd{
-				tsh:      tsh.NewTSH(proxy),
-				list:     proxy.Forwarding.Nodes,
-				nodeHost: host,
+				tsh:         tsh.NewTSH(proxy),
+				list:        proxy.Forwarding.Nodes,
+				nodeHost:    host,
+				defaultUser: user,
 			}
 			err = f.Run()
 			if err != nil {
@@ -378,9 +392,10 @@ func getLatestNode(proxy *config.Proxy, isAppend bool) (config.Node, error) {
 }
 
 type fwd struct {
-	tsh      *tsh.TSH
-	nodeHost string
-	list     []*config.ForwardingNode
+	tsh         *tsh.TSH
+	nodeHost    string
+	list        []*config.ForwardingNode
+	defaultUser string
 }
 
 func (f *fwd) Run() error {
@@ -389,28 +404,7 @@ func (f *fwd) Run() error {
 	}
 	for _, node := range f.list {
 		go func(node *config.ForwardingNode) {
-			for {
-				if node.UserLogin == "" {
-					node.Status = false
-					node.Error = "user login empty"
-					return
-				}
-
-				if node.Host == "" {
-					node.Status = false
-					node.Error = "host empty"
-					return
-				}
-
-				in := &sleepReader{dur: 3 * time.Minute}
-				err := f.tsh.Forward(node.UserLogin, f.nodeHost, node.Address(), in)
-				if err != nil {
-					node.Status = false
-					node.Error = err.Error()
-					return
-				}
-				node.Status = true
-			}
+			f.execForwarding(node)
 		}(node)
 	}
 	go f.doHealthCheck()
@@ -427,6 +421,7 @@ func (f *fwd) doHealthCheck() {
 				if err != nil {
 					node.Status = false
 					node.Error = err.Error()
+					f.execForwarding(node)
 					return
 				}
 				node.Status = true
@@ -434,6 +429,31 @@ func (f *fwd) doHealthCheck() {
 			}(node)
 		}
 		time.Sleep(2 * time.Second)
+	}
+}
+
+func (f *fwd) execForwarding(node *config.ForwardingNode) {
+	for {
+		if node.UserLogin == "" {
+			node.UserLogin = f.defaultUser
+		}
+
+		if node.Host == "" {
+			node.Host = f.nodeHost
+		}
+
+		in := &sleepReader{dur: 3 * time.Minute}
+		err := f.tsh.Forward(node.UserLogin, f.nodeHost, node.Address(), in)
+		if err == io.EOF {
+			node.Status = true
+			continue
+		}
+		if err != nil {
+			node.Status = false
+			node.Error = err.Error()
+			return
+		}
+		node.Status = true
 	}
 }
 

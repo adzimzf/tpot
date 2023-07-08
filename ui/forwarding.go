@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/adzimzf/tpot/config"
@@ -73,6 +74,59 @@ func NewForwarding(list []*config.ForwardingNode) {
 	return
 }
 
+// remoteHostMap stores the index char to show first
+var remoteHostMap = sync.Map{}
+
+type remoteHostMapper struct {
+	index int
+}
+
+// refreshRemoteHost determine the remoteHost to be shown in the UI
+// if the number of character is greater than maximum Box, then
+// every 1 second it'll move 1 character to the left
+func refreshRemoteHost(remoteHost string) string {
+	const maxChar = 30
+
+	if len(remoteHost) <= maxChar {
+		return remoteHost
+	}
+
+	load, ok := remoteHostMap.Load(remoteHost)
+	if !ok {
+		// start show from the first character
+		// when first loading
+		remoteHostMap.Store(remoteHost, remoteHostMapper{
+			index: 1,
+		})
+		return remoteHost
+	}
+
+	m, ok := load.(remoteHostMapper)
+	if !ok {
+		return remoteHost
+	}
+
+	if m.index >= len(remoteHost) {
+		// restart the index once it reaches the maximum character
+		remoteHostMap.Store(remoteHost, remoteHostMapper{
+			index: 1,
+		})
+		return remoteHost
+	}
+
+	const maxShowNext = 25
+	if len(remoteHost[m.index:]) <= maxShowNext {
+		x := remoteHost[m.index:] + "  " + remoteHost[0:maxChar+2-len(remoteHost[m.index:])-4]
+		m.index++
+		remoteHostMap.Store(remoteHost, m)
+		return x
+	}
+
+	m.index++
+	remoteHostMap.Store(remoteHost, m)
+	return remoteHost[m.index-1:]
+}
+
 func updateStatus(g *gocui.Gui, list []*config.ForwardingNode) {
 	for {
 		time.Sleep(1 * time.Second)
@@ -87,10 +141,10 @@ func updateStatus(g *gocui.Gui, list []*config.ForwardingNode) {
 					view.FgColor = gocui.ColorGreen
 				}
 				view.Clear()
-				view.Write([]byte(fmt.Sprintf("listen: %s\nto    : %s:%s\nerror : %s", node.ListenPort, node.RemoteHost, node.RemotePort, node.Error)))
+				remoteHost := refreshRemoteHost(node.RemoteHost)
+				view.Write([]byte(fmt.Sprintf("listen: %s\nto    : %s:%s\nerror : %s", node.ListenPort, remoteHost, node.RemotePort, node.Error)))
 			}
 			return nil
 		})
-
 	}
 }
