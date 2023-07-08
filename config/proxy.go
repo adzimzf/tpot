@@ -42,15 +42,15 @@ proxies:
   # port forwarding configuration
   forwarding:
 	# how ofter the forwarding will reload
-	interval: 30
+	#interval: 30
 	
 	# the list of nodes to be forward
-	nodes:
-      - host: teleport-127.0.0.1
-        user_login: root
-		local_port: 12345
-		remote_port: 9000
-		remote_host: "localhost"
+	#nodes:
+      #- host: teleport-127.0.0.1
+       	# user_login: root
+       	#local_port: 12345
+		#remote_port: 9000
+		#remote_host: "localhost"
 `
 
 const proxyTemplateFormat = `

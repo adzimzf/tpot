@@ -1,6 +1,7 @@
 package tsh
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/adzimzf/tpot/config"
 )
@@ -16,7 +18,34 @@ type TSH struct {
 	proxy              *config.Proxy
 	userLogin, dstHost string
 
+	// abstract the exec.Command
+	cmdExec func(name string, arg ...string) CmdExecutor
+
 	minVersion Version
+}
+
+type CmdExecutor interface {
+	Run() (cmdResult, error)
+}
+
+type cmdResult struct {
+	stdOut, stdErr *bytes.Buffer
+}
+
+type cmdType struct {
+	*exec.Cmd
+}
+
+func Command(name string, arg ...string) CmdExecutor {
+	return &cmdType{exec.Command(name, arg...)}
+}
+
+func (c *cmdType) Run() (cmdResult, error) {
+	var stdOut, stdErr = &bytes.Buffer{}, &bytes.Buffer{}
+	c.Cmd.Stdout = stdOut
+	c.Cmd.Stderr = stdErr
+	err := c.Cmd.Run()
+	return cmdResult{stdOut, stdErr}, err
 }
 
 // tshBinary is the `tsh` binary where we depends
@@ -167,6 +196,11 @@ func trimSliceString(list []string) (res []string) {
 }
 
 func (t *TSH) login() error {
+
+	if t.isLogin() {
+		return nil
+	}
+
 	args, err := t.getProxyFlags()
 	if err != nil {
 		return err
@@ -179,6 +213,60 @@ func (t *TSH) login() error {
 	cmd.Stdin = os.Stdin
 	cmd.Stderr = os.Stdin
 	return cmd.Run()
+}
+
+type Profile struct {
+	URL        string
+	ValidUntil time.Time
+}
+
+// isLogin return true if the user is already login
+func (t *TSH) isLogin() bool {
+	cmd := t.cmdExec(t.tshBinary(), "status")
+	res, err := cmd.Run()
+	if err != nil {
+		return false
+	}
+
+	if res.stdErr.String() != "" {
+		return false
+	}
+
+	targetProfile := t.proxy.Address
+	scanner := bufio.NewScanner(strings.NewReader(res.stdOut.String()))
+	var currentProfile *Profile
+	profileMap := make(map[string]*Profile)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "Profile URL:") {
+			if currentProfile != nil && currentProfile.URL != "" {
+				profileMap[currentProfile.URL] = currentProfile
+			}
+			line = strings.Replace(line, ">", "", -1)
+			line = strings.Replace(line, "Profile URL:", "", -1)
+			currentProfile = &Profile{
+				URL: strings.TrimSpace(line),
+			}
+		} else if strings.Contains(line, "Valid until:") {
+			line = strings.TrimSpace(line)
+			timeString := strings.Split(strings.TrimPrefix(line, "Valid until:"), "[")[0]
+			timeString = strings.TrimSpace(timeString)
+			layout := "2006-01-02 15:04:05 -0700 WIB"
+			validUntil, _ := time.Parse(layout, timeString)
+			currentProfile.ValidUntil = validUntil
+		}
+	}
+	if currentProfile != nil && currentProfile.URL != "" {
+		profileMap[currentProfile.URL] = currentProfile
+	}
+
+	target, exists := profileMap[targetProfile]
+	if !exists {
+		return false
+	}
+
+	return time.Now().Before(target.ValidUntil)
 }
 
 func (t *TSH) getProxyFlags() ([]string, error) {
@@ -262,8 +350,8 @@ func parseNodesFromString(nodeStr string) config.Node {
 // NewTSH creates a new TSH
 func NewTSH(p *config.Proxy) *TSH {
 	return &TSH{
-		proxy: p,
-
+		proxy:   p,
+		cmdExec: Command,
 		// the minimum version for supporting Status is TSH v2.6.1
 		minVersion: Version{
 			Major: 2,
