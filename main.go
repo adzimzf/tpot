@@ -414,6 +414,7 @@ func (f *fwd) Run() error {
 
 func (f *fwd) doHealthCheck() {
 	for {
+		time.Sleep(2 * time.Second)
 		for _, node := range f.list {
 			go func(node *config.ForwardingNode) {
 				timeout := time.Second
@@ -428,7 +429,6 @@ func (f *fwd) doHealthCheck() {
 				node.Error = ""
 			}(node)
 		}
-		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -463,6 +463,8 @@ type sleepReader struct {
 
 // Read will only delay the reader then return error
 func (f *sleepReader) Read(p []byte) (n int, err error) {
-	time.Sleep(f.dur)
+	for {
+		time.Sleep(2 * time.Second)
+	}
 	return 0, io.EOF
 }
