@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/adzimzf/tpot/config"
@@ -40,14 +41,15 @@ func main() {
 }
 
 const example = `
-tpot -c --add         // Set up the configuration environment
-tpot -c --edit        // Edit all the configuration
-tpot staging          // Show the node list of staging environment
-tpot staging --edit   // Edit the staging proxy configuration
-tpot prod -a          // Get the latest node list then append to the cache for production 
-tpot prod -r          // Refresh the cache with the latest node from Teleport UI
-tpot prod -u root     // Login into production using root user
-tpot prod -L          // Run the tsh forwarding based on the config list
+tpot -c --add                       // Set up the configuration environment
+tpot -c --edit                      // Edit all the configuration
+tpot staging                        // Show the node list of staging environment
+tpot staging --edit                 // Edit the staging proxy configuration
+tpot prod -a                        // Get the latest node list then append to the cache for production 
+tpot prod -r                        // Refresh the cache with the latest node from Teleport UI
+tpot prod -u root                   // Login into production using root user
+tpot prod -L                        // Run the tsh forwarding based on the config list
+tpot prod -L 123:localhost:123      // Run the tsh forwarding based on the list in argument
 `
 
 var rootCmd = &cobra.Command{
@@ -96,6 +98,28 @@ var rootCmd = &cobra.Command{
 			}
 			proxy.Node = *node
 
+			forwardingNodes := proxy.Forwarding.Nodes
+			if len(args) > 1 {
+				nodesStr := strings.Split(args[1], ",")
+				nodes := []*config.ForwardingNode{}
+				for _, s := range nodesStr {
+					parts := strings.Split(s, ":")
+					if len(parts) != 3 {
+						cmd.PrintErrln(fmt.Sprintf("invalid forwarding format for: %s, use format <local port>:<remote address>:<remote port> example: 123:localhost:123", s))
+						return
+					}
+					nodes = append(nodes, &config.ForwardingNode{
+						ListenPort: parts[0],
+						RemoteHost: parts[1],
+						RemotePort: parts[2],
+					})
+				}
+				// replace the forwarding config nodes
+				if len(nodes) > 0 {
+					forwardingNodes = nodes
+				}
+			}
+
 			host := ui.GetSelectedHost(proxy.Node.ListHostname())
 			if host == "" {
 				cmd.PrintErrln("Pick at least one host to login")
@@ -110,7 +134,7 @@ var rootCmd = &cobra.Command{
 
 			f := fwd{
 				tsh:         tsh.NewTSH(proxy),
-				list:        proxy.Forwarding.Nodes,
+				list:        forwardingNodes,
 				nodeHost:    host,
 				defaultUser: user,
 			}
@@ -402,6 +426,12 @@ func (f *fwd) Run() error {
 	if len(f.list) == 0 {
 		return fmt.Errorf("forwarding configuration is empty")
 	}
+
+	err := f.tsh.Login()
+	if err != nil {
+		return fmt.Errorf("failed to login, error: %v", err)
+	}
+
 	for _, node := range f.list {
 		go func(node *config.ForwardingNode) {
 			f.execForwarding(node)

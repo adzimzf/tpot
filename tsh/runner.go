@@ -83,7 +83,7 @@ func (t *TSH) SSH(username, host string) error {
 // ListNodes get the list nodes from proxy
 func (t *TSH) ListNodes() (config.Node, error) {
 
-	if err := t.login(); err != nil {
+	if err := t.Login(); err != nil {
 		return config.Node{}, err
 	}
 
@@ -195,7 +195,7 @@ func trimSliceString(list []string) (res []string) {
 	return
 }
 
-func (t *TSH) login() error {
+func (t *TSH) Login() error {
 
 	if t.isLogin() {
 		return nil
