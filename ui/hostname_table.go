@@ -178,7 +178,7 @@ func findMaxXY(s string) (m maxXY) {
 
 }
 
-func debug(i ...interface{}) {
+func Debug(i ...interface{}) {
 	s := time.Now().String() + "\n"
 	for _, i1 := range i {
 		s += fmt.Sprintf("%v", i1)
