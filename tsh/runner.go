@@ -172,6 +172,15 @@ func (t *TSH) parseStringToStatus(str string) *config.ProxyStatus {
 	lines := strings.Split(str, "\n")
 	res := &config.ProxyStatus{}
 	for _, line := range lines {
+		if line == "" {
+			/*
+				In order to support newer TSH version that has
+				Different formatting and the updated version is on the top
+				we need to break the loop if the line is empty
+			*/
+			break
+		}
+
 		kv := strings.Split(line, ":")
 		if len(kv) <= 1 {
 			continue
