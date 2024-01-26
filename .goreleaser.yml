@@ -134,8 +134,6 @@ brews:
 
     # Packages your package depends on.
     dependencies:
-      - name: tsh
-        type: optional
       - name: zsh
         type: optional
 
