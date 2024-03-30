@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/jroimartin/gocui"
+	"strings"
 )
 
 type navDir int
@@ -37,7 +38,7 @@ func (a *ArrowNav) newHandler(dir navDir) func(g *gocui.Gui, v *gocui.View) erro
 		}
 
 		text := cleanText(resultV.Buffer())
-		keyword := inputV.Buffer()
+		keyword := strings.TrimSpace(inputV.Buffer())
 		pos, data := findArrowPos(text)
 		nextPos := a.nextPos(pos, findMaxXY(text), dir)
 		resultV.Clear()

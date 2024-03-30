@@ -79,7 +79,7 @@ func TestNew(t *testing.T) {
 				t.Errorf("NewVersion() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want, *got)
 		})
 	}
 }
