@@ -2,13 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"github.com/jroimartin/gocui"
+	"github.com/lithammer/fuzzysearch/fuzzy"
 	"log"
 	"os"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/jroimartin/gocui"
 )
 
 // maxScreenX maximum screen wide to show table UI
@@ -68,18 +68,65 @@ func GetSelectedHost(hosts []string) string {
 
 }
 
-func lookup(keyword string, datum []string) map[string]stringResult {
-	res := make(map[string]stringResult, len(datum))
-	for _, data := range datum {
-		if data == "" {
-			continue
-		}
-		keyword = strings.TrimSpace(keyword)
-		if strings.Contains(data, keyword) {
-			res[data] = stringResult{
-				FormattedData: data,
+// findMatchPositions return the position and matches char of keyword in the string
+// eg:
+//
+//	 keyword: this
+//	 str: this is word
+//	 return:
+//			matches: this
+//			positions: [0,3]
+func findMatchPositions(keyword, str string) (matches []string, positions [][]int) {
+	for pos, char := range str {
+		foundPos := -1
+		for _, keywordChar := range keyword {
+			if char == keywordChar {
+				foundPos = pos
+				break
 			}
 		}
+		if foundPos != -1 {
+			matches = append(matches, string(char))
+			positions = append(positions, []int{foundPos, foundPos + 1})
+			str = str[:foundPos] + " " + str[foundPos+1:]
+		}
+
+	}
+	return matches, positions
+}
+
+// lookup the keyword in the datum (list of host)
+func lookup(keyword string, datum []string) []stringResult {
+
+	// empty string is not needed, but the datum might contain it.
+	var tmpDatum []string
+	for _, s := range datum {
+		if s != "" {
+			tmpDatum = append(tmpDatum, s)
+		}
+	}
+	datum = tmpDatum
+
+	var res []stringResult
+	matchStrings := fuzzy.RankFindNormalizedFold(keyword, datum)
+
+	if keyword == "" {
+		sort.Slice(matchStrings, func(i, j int) bool {
+			return matchStrings[i].Target < matchStrings[j].Target
+		})
+	} else {
+		sort.Slice(matchStrings, func(i, j int) bool {
+			return matchStrings[i].Distance < matchStrings[j].Distance
+		})
+	}
+
+	for _, matchString := range matchStrings {
+		_, pos := findMatchPositions(keyword, matchString.Target)
+		res = append(res, stringResult{
+			MatchPositions: pos,
+			Keyword:        keyword,
+			Data:           matchString.Target,
+		})
 	}
 	return res
 }
@@ -89,27 +136,72 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 }
 
 type stringResult struct {
-	CharMatch     int
-	FormattedData string
+	MatchPositions [][]int
+	Keyword        string
+	Data           string
+}
+
+// colorizeMatchChars the matching string
+func (s stringResult) colorizeMatchChars() string {
+	str := strings.Builder{}
+	colorized := false
+	for i := 0; i < len(s.Data); i++ {
+		for _, position := range s.MatchPositions {
+			if i == position[0] { // start to colorizeMatchChars
+				colorized = true
+			}
+			if i == position[1] { // reset colorizeMatchChars
+				colorized = false
+			}
+		}
+		if colorized {
+			str.WriteString("\u001B[37;7m")
+			str.WriteRune(rune(s.Data[i]))
+			str.WriteString("\u001B[0m")
+		} else {
+			str.WriteRune(rune(s.Data[i]))
+		}
+
+	}
+	return str.String()
+}
+
+// divChars the space before pipe
+func (s stringResult) divChars() string {
+	const maxSpace = 60
+	str := strings.Builder{}
+	for i := 0; i < maxSpace-len(s.Data); i++ {
+		str.WriteString(" ")
+	}
+	str.WriteRune(dividerChar)
+	return str.String()
 }
 
 // formatResult colorize & create table to be shown as a string
 // d is a list of node
 // keyword is a keyword to be colorize
 // ap is the current arrow position
-func formatResult(d map[string]stringResult, keyword string, ap arrowPos) string {
+func formatResult(hosts []stringResult, keyword string, ap arrowPos) string {
 	screenMaxY := maxScreenY - 3
 	var res string
 	var y, x int
 	newList := make([]string, screenMaxY)
-	for _, key := range sortKey(d) {
-		prefix := "   "
-		formattedHost := colorizeSelectedWord(d[key].FormattedData, keyword)
+
+	for _, key := range hosts {
+		formattedHost := strings.Builder{}
+		// if the host is selected, the color and prefix will be different
 		if y == ap.Y && x == ap.X {
-			prefix = arrowColorized
-			formattedHost = fmt.Sprintf("\u001B[33;1m%s\u001B[0m", d[key].FormattedData)
+			formattedHost.WriteString(arrowColorized)
+			formattedHost.WriteString("\u001B[33;1m")
+			formattedHost.WriteString(key.Data)
+			formattedHost.WriteString("\u001B[0m")
+		} else {
+			formattedHost.WriteString("   ")
+			formattedHost.WriteString(key.colorizeMatchChars())
 		}
-		newList[y] += fmt.Sprintf("%s%-60s%s", prefix, formattedHost, string(dividerChar))
+		formattedHost.WriteString(key.divChars())
+
+		newList[y] += formattedHost.String()
 		y++
 		if y >= screenMaxY {
 			x++
@@ -127,16 +219,6 @@ type arrowPos struct {
 	X, Y int
 }
 
-// sortKey sort the table item from A-Z to improve readability
-func sortKey(d map[string]stringResult) []string {
-	var res []string
-	for s := range d {
-		res = append(res, s)
-	}
-	sort.Strings(res)
-	return res
-}
-
 // cleanText clear the text from color character
 func cleanText(s string) string {
 	chars := []string{" ", "\u001B[33;1m", "\u001B[0m", "\u001B[37;7m", "\u001B[0m"}
@@ -144,13 +226,6 @@ func cleanText(s string) string {
 		s = strings.Replace(s, c, "", -1)
 	}
 	return s
-}
-
-func colorizeSelectedWord(text, keyword string) string {
-	key := strings.TrimSpace(keyword)
-	return strings.Replace(text,
-		strings.TrimSpace(key),
-		fmt.Sprintf("\u001B[37;7m%s\u001B[0m", key), 1)
 }
 
 func findArrowPos(res string) (ap arrowPos, data []string) {
@@ -179,22 +254,23 @@ func findMaxXY(s string) (m maxXY) {
 }
 
 func Debug(i ...interface{}) {
-	s := time.Now().String() + "\n"
-	for _, i1 := range i {
-		s += fmt.Sprintf("%v", i1)
-	}
-	f, err := os.OpenFile(".debug", os.O_APPEND|os.O_RDWR, 777)
-	if err != nil {
-		log.Fatal(err)
-	}
+	go func() {
+		s := time.Now().String() + "\n"
+		for _, i1 := range i {
+			s += fmt.Sprintf("%v", i1)
+		}
+		f, err := os.OpenFile(".debug", os.O_APPEND|os.O_RDWR, 777)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	_, err = f.WriteString(fmt.Sprintf("========\n%s\n======\n", s))
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = f.Sync()
-	if err != nil {
-		log.Fatal(err)
-	}
-
+		_, err = f.WriteString(fmt.Sprintf("========\n%s\n======\n", s))
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = f.Sync()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 }
