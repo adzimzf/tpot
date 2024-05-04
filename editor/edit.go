@@ -8,9 +8,8 @@ import (
 
 const DefaultEditor = "nano"
 
-// Edit edit the text using editor
+// Edit the text using editor
 func Edit(text string, tmpPattern string) (string, error) {
-
 	if tmpPattern == "" {
 		tmpPattern = "tpot_*.txt"
 	}
@@ -25,7 +24,15 @@ func Edit(text string, tmpPattern string) (string, error) {
 		return "", err
 	}
 
-	cmd := exec.Command(DefaultEditor, f.Name())
+	editor := os.Getenv("VISUAL")
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
+		if editor == "" {
+			editor = DefaultEditor
+		}
+	}
+
+	cmd := exec.Command(editor, f.Name())
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
